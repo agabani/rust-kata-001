@@ -1,1 +1,1 @@
-# rust-deps
+# rust-kata-001

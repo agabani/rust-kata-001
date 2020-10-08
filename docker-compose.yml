@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  mysql:
+    environment:
+      CHARACTER_SET_SERVER: utf8mb4
+      COLLATION_SERVER: utf8mb4_unicode_ci
+      MYSQL_ROOT_PASSWORD: password
+    image: library/mysql:5.6.49
+    ports:
+    - 3306:3306
