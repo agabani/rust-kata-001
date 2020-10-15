@@ -12,8 +12,8 @@ pub async fn get_dependency<DGO, DSO, AGO, AGV>(
     version: String,
 ) -> Result<Vec<Crate>, String>
 where
-    DGO: Future<Output = Result<Option<Crate>, sqlx::Error>>,
-    DSO: Future<Output = Result<(), sqlx::Error>>,
+    DGO: Future<Output = Result<Option<Crate>, String>>,
+    DSO: Future<Output = Result<(), String>>,
     AGO: Future<Output = Result<Crate, String>>,
     AGV: Future<Output = Result<Vec<semver::Version>, String>>,
 {
@@ -80,8 +80,8 @@ async fn get_one<DGO, DSO, AGO, AGV>(
     version: String,
 ) -> Result<Crate, String>
 where
-    DGO: Future<Output = Result<Option<Crate>, sqlx::Error>>,
-    DSO: Future<Output = Result<(), sqlx::Error>>,
+    DGO: Future<Output = Result<Option<Crate>, String>>,
+    DSO: Future<Output = Result<(), String>>,
     AGO: Future<Output = Result<Crate, String>>,
     AGV: Future<Output = Result<Vec<semver::Version>, String>>,
 {

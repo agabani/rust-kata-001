@@ -14,7 +14,11 @@ impl CrateDataDto {
         pool: &MySqlPool,
         name: String,
         version: String,
-    ) -> Result<Option<Crate>, sqlx::Error> {
+    ) -> Result<Option<Crate>, String> {
+        let fn_name = "get_one";
+
+        log::info!("{}: name={} version={}", fn_name, name, version);
+
         let records = sqlx::query(
             "SELECT c.name, c.version, cd.name, cd.version
 FROM crate AS c
@@ -25,7 +29,11 @@ WHERE c.name = ?
         .bind(name)
         .bind(version)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;
 
         let mut crate_deps = Vec::new();
 
@@ -47,18 +55,33 @@ WHERE c.name = ?
         }
     }
 
-    pub async fn save_one(pool: &MySqlPool, c: Crate) -> Result<(), sqlx::Error> {
-        let transaction = pool.begin().await?;
+    pub async fn save_one(pool: &MySqlPool, c: Crate) -> Result<(), String> {
+        let fn_name = "save_one";
+
+        log::info!("{}: crate={:?}", fn_name, c);
+
+        let transaction = pool.begin().await.map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;
 
         sqlx::query("INSERT INTO crate (name, version) VALUE (?, ?)")
             .bind(c.name)
             .bind(c.version.to_string())
             .execute(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                log::error!("{}: error {:?}", fn_name, e);
+                format!("{}: error {:?}", fn_name, e)
+            })?;
 
         let row = sqlx::query("SELECT LAST_INSERT_ID()")
             .fetch_one(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                log::error!("{}: error {:?}", fn_name, e);
+                format!("{}: error {:?}", fn_name, e)
+            })?;
 
         let id: u64 = row.get(0);
 
@@ -68,10 +91,17 @@ WHERE c.name = ?
                 .bind(d.name)
                 .bind(d.version.to_string())
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    log::error!("{}: error {:?}", fn_name, e);
+                    format!("{}: error {:?}", fn_name, e)
+                })?;
         }
 
-        transaction.commit().await?;
+        transaction.commit().await.map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;
 
         Ok(())
     }
