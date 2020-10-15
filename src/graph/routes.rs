@@ -29,9 +29,9 @@ pub async fn list(
         |c: Crate| async { data::CrateDataDto::save_one(database_pool.get_ref(), c).await };
 
     let api_get_one =
-        |name: String, version: String| async { api::dependencies(name, version).await };
+        |name: String, version: String| async { api::client::dependencies(name, version).await };
 
-    let api_get_versions = |name: String| async { api::versions(name).await };
+    let api_get_versions = |name: String| async { api::client::versions(name).await };
 
     // flow
     let result = get_dependency(
