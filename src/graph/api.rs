@@ -3,39 +3,66 @@ use actix_web::client::Client;
 use semver::Version;
 use serde::Deserialize;
 
-pub async fn query(name: String, version: String) -> Result<Crate, String> {
-    let url = format!(
-        "https://crates.io/api/v1/crates/{}/{}/dependencies",
-        name, version
-    );
-
-    let client = Client::builder()
+fn client() -> Client {
+    Client::builder()
         .header(
             "User-Agent",
             "rust-kata-001 (https://github.com/agabani/rust-kata-001)",
         )
-        .finish();
+        .finish()
+}
 
-    let response = client.get(url).send().await;
+pub async fn dependencies(name: String, version: String) -> Result<Crate, String> {
+    let fn_name = "dependencies";
 
-    match response {
-        Ok(mut t) => {
-            // TODO: validate status code
-            let status = t.status();
-            log::info!("{} {} {}", status, &name, &version);
+    let url = format!(
+        "https://crates.io/api/v1/crates/{}/{}/dependencies",
+        name, version
+    );
+    log::info!("{}: url={}", fn_name, url);
 
-            let json = t.json::<DependenciesApiDto>().await;
+    let mut response = client().get(url).send().await.map_err(|e| {
+        log::error!("{}: send request error {:?}", fn_name, e);
+        format!("{}: send request error: {:?}", fn_name, e)
+    })?;
+    log::info!("{}: status={}", fn_name, response.status());
 
-            log::info!("{:?}", json);
+    let dto = response.json::<DependenciesApiDto>().await.map_err(|e| {
+        log::error!("{}: json payload error {:?}", fn_name, e);
+        format!("{}: json payload error: {:?}", fn_name, e)
+    })?;
+    log::info!("{}: dto={:?}", fn_name, dto);
 
-            let r = json.unwrap();
-            Ok(DependenciesApiDto::transform(&name, &version, &r))
-        }
-        Err(e) => {
-            log::error!("{}", e);
-            Err(format!("{:?}", e))
-        }
-    }
+    Ok(DependenciesApiDto::transform(&name, &version, &dto))
+}
+
+pub async fn versions(name: String) -> Result<Vec<Version>, String> {
+    let fn_name = "versions";
+
+    let url = format!("https://crates.io/api/v1/crates/{}", name);
+    log::info!("{}: url={}", fn_name, url);
+
+    let mut response = client().get(url).send().await.map_err(|e| {
+        log::error!("{}: send request error {:?}", fn_name, e);
+        format!("{}: send request error: {:?}", fn_name, e)
+    })?;
+    log::info!("{}: status={}", fn_name, response.status());
+
+    let dto = response
+        .json::<VersionsApiDto>()
+        .limit(20_000_000)
+        .await
+        .map_err(|e| {
+            log::error!("{}: json payload error {:?}", fn_name, e);
+            format!("{}: json payload error: {:?}", fn_name, e)
+        })?;
+    log::info!("{}: dto={:?}", fn_name, dto);
+
+    Ok(dto
+        .versions
+        .iter()
+        .map(|v| Version::parse(&v.num).unwrap())
+        .collect())
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +82,16 @@ struct DependencyApiDto {
     target: Option<String>,
     kind: String,
     downloads: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct VersionsApiDto {
+    versions: Vec<VersionApiDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VersionApiDto {
+    num: String,
 }
 
 impl DependenciesApiDto {
