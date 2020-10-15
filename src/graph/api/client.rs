@@ -12,7 +12,10 @@ fn client() -> Client {
         .finish()
 }
 
-pub async fn dependencies(name: String, version: String) -> Result<Crate, String> {
+pub(crate) async fn dependencies(
+    name: String,
+    version: String,
+) -> Result<DependenciesApiDto, String> {
     let fn_name = "dependencies";
 
     let url = format!(
@@ -33,10 +36,10 @@ pub async fn dependencies(name: String, version: String) -> Result<Crate, String
     })?;
     log::info!("{}: dto={:?}", fn_name, dto);
 
-    Ok(DependenciesApiDto::transform(&name, &version, &dto))
+    Ok(dto)
 }
 
-pub async fn versions(name: String) -> Result<Vec<Version>, String> {
+pub(crate) async fn versions(name: String) -> Result<VersionsApiDto, String> {
     let fn_name = "versions";
 
     let url = format!("https://crates.io/api/v1/crates/{}", name);
@@ -58,59 +61,46 @@ pub async fn versions(name: String) -> Result<Vec<Version>, String> {
         })?;
     log::info!("{}: dto={:?}", fn_name, dto);
 
-    Ok(dto
-        .versions
-        .iter()
-        .map(|v| Version::parse(&v.num).unwrap())
-        .collect())
+    Ok(dto)
 }
 
 #[derive(Debug, Deserialize)]
-struct DependenciesApiDto {
-    dependencies: Vec<DependencyApiDto>,
+pub(crate) struct ErrorApiDto {
+    pub(crate) detail: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct DependencyApiDto {
-    id: i32,
-    version_id: i32,
-    crate_id: String,
-    req: String,
-    optional: bool,
-    default_features: bool,
-    features: Vec<String>,
-    target: Option<String>,
-    kind: String,
-    downloads: i32,
+pub(crate) struct DependenciesApiDto {
+    pub(crate) dependencies: Option<Vec<DependencyApiDto>>,
+    pub(crate) errors: Option<Vec<ErrorApiDto>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct VersionsApiDto {
-    versions: Vec<VersionApiDto>,
+pub(crate) struct DependencyApiDto {
+    pub(crate) id: i32,
+    pub(crate) version_id: i32,
+    pub(crate) crate_id: String,
+    pub(crate) req: String,
+    pub(crate) optional: bool,
+    pub(crate) default_features: bool,
+    pub(crate) features: Vec<String>,
+    pub(crate) target: Option<String>,
+    pub(crate) kind: String,
+    pub(crate) downloads: i32,
 }
 
 #[derive(Debug, Deserialize)]
-struct VersionApiDto {
-    num: String,
+pub(crate) struct VersionsApiDto {
+    pub(crate) versions: Option<Vec<VersionApiDto>>,
+    pub(crate) errors: Option<Vec<ErrorApiDto>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct VersionApiDto {
+    pub(crate) num: String,
 }
 
 impl DependenciesApiDto {
-    fn transform(name: &str, version: &str, dependencies: &DependenciesApiDto) -> Crate {
-        Crate {
-            name: name.to_owned(),
-            version: DependenciesApiDto::version(version).unwrap(),
-            dependency: dependencies
-                .dependencies
-                .iter()
-                .filter(|d| d.kind == "normal")
-                .map(|d| CrateDependency {
-                    name: d.crate_id.to_owned(),
-                    version: DependenciesApiDto::version(&d.req).unwrap(),
-                })
-                .collect(),
-        }
-    }
-
     fn version(input: &str) -> Result<semver::Version, String> {
         use std::iter::FromIterator;
 
@@ -138,63 +128,5 @@ impl DependenciesApiDto {
             Ok(t) => Ok(t),
             Err(e) => Err(e.to_string()),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn transform() {
-        let name = "name";
-        let version = "version";
-        let dependencies = DependenciesApiDto {
-            dependencies: vec![
-                DependencyApiDto {
-                    id: 1,
-                    version_id: 1,
-                    crate_id: "sub name 1".to_owned(),
-                    req: "sub version 1".to_owned(),
-                    optional: false,
-                    default_features: false,
-                    features: vec![],
-                    target: Some("target".to_owned()),
-                    kind: "kind".to_owned(),
-                    downloads: 1,
-                },
-                DependencyApiDto {
-                    id: 1,
-                    version_id: 1,
-                    crate_id: "sub name 2".to_owned(),
-                    req: "sub version 2".to_owned(),
-                    optional: false,
-                    default_features: false,
-                    features: vec![],
-                    target: None,
-                    kind: "kind".to_owned(),
-                    downloads: 1,
-                },
-            ],
-        };
-
-        let expected = Crate {
-            name: "name".to_owned(),
-            version: semver::Version::parse("version").unwrap(),
-            dependency: vec![
-                CrateDependency {
-                    name: "sub name 1".to_owned(),
-                    version: semver::Version::parse("sub version 1").unwrap(),
-                },
-                CrateDependency {
-                    name: "sub name 2".to_owned(),
-                    version: semver::Version::parse("sub version 2").unwrap(),
-                },
-            ],
-        };
-
-        let actual = DependenciesApiDto::transform(name, version, &dependencies);
-
-        assert_eq!(actual, expected);
     }
 }

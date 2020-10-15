@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 pub struct ErrorWebDto {
     pub status_code: i32,
+    pub error_message: String,
 }
 
 #[derive(Debug, PartialEq, Serialize)]

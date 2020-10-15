@@ -12,12 +12,22 @@ pub async fn list(
     // request
     let name = match &query_parameters.name {
         Some(name) => name,
-        None => return HttpResponse::BadRequest().json(models::ErrorWebDto { status_code: 400 }),
+        None => {
+            return HttpResponse::BadRequest().json(models::ErrorWebDto {
+                status_code: 400,
+                error_message: "name is required".to_owned(),
+            })
+        }
     };
 
     let version = match &query_parameters.version {
         Some(version) => version,
-        None => return HttpResponse::BadRequest().json(models::ErrorWebDto { status_code: 400 }),
+        None => {
+            return HttpResponse::BadRequest().json(models::ErrorWebDto {
+                status_code: 400,
+                error_message: "version is required".to_owned(),
+            })
+        }
     };
 
     // dependencies
@@ -29,9 +39,9 @@ pub async fn list(
         |c: Crate| async { data::CrateDataDto::save_one(database_pool.get_ref(), c).await };
 
     let api_get_one =
-        |name: String, version: String| async { api::client::dependencies(name, version).await };
+        |name: String, version: String| async { api::dependencies(name, version).await };
 
-    let api_get_versions = |name: String| async { api::client::versions(name).await };
+    let api_get_versions = |name: String| async { api::versions(name).await };
 
     // flow
     let result = get_dependency(
@@ -53,7 +63,10 @@ pub async fn list(
         ),
         Err(e) => {
             log::error!("{}", e);
-            HttpResponse::InternalServerError().json(e)
+            HttpResponse::InternalServerError().json(models::ErrorWebDto {
+                status_code: 500,
+                error_message: e,
+            })
         }
     }
 }
