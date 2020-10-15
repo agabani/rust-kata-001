@@ -94,13 +94,13 @@ where
         return Ok(database_crate);
     }
 
-    let api_crate = api_get_one(name.to_owned(), version.to_owned()).await?;
+    let mut api_crate = api_get_one(name.to_owned(), version.to_owned()).await?;
 
     log::info!("{}: checking for version 0.0.0", fn_name);
     for offending_crate_dependency in api_crate
         .dependency
-        .iter()
-        .filter(|&d| d.version == Version::new(0, 0, 0))
+        .iter_mut()
+        .filter(|d| d.version == Version::new(0, 0, 0))
     {
         log::info!(
             "{} offending_crate_dependency={:?}",
@@ -114,9 +114,11 @@ where
         log::info!(
             "{} versions={:?} min_version={:?}",
             fn_name,
-            version,
+            versions,
             min_version
         );
+
+        offending_crate_dependency.version = min_version.to_owned()
     }
 
     db_save_one(api_crate.clone()).await?;
