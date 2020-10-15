@@ -85,50 +85,43 @@ where
     AGO: Future<Output = Result<Crate, String>>,
     AGV: Future<Output = Result<Vec<semver::Version>, String>>,
 {
-    let database = db_get_one(name.to_owned(), version.to_owned()).await;
+    let fn_name = "get_one";
 
-    match database {
-        Ok(c) => {
-            log::info!("get one: success from database: {:?}", c);
+    let database_crate = db_get_one(name.to_owned(), version.to_owned()).await?;
 
-            if let Some(c) = c {
-                return Ok(c);
-            }
-        }
-        Err(e) => {
-            log::error!("get one: failed to query database {:?}", e);
-            return Err(format!("{:?}", e));
-        }
+    if let Some(database_crate) = database_crate {
+        log::info!("{}: database_create={:?}", fn_name, database_crate);
+        return Ok(database_crate);
     }
 
-    let api = api_get_one(name.to_owned(), version.to_owned()).await;
+    let api_crate = api_get_one(name.to_owned(), version.to_owned()).await?;
 
-    match api {
-        Ok(c) => {
-            log::info!("flow: get one api: {:?}", c);
-
-            for x in c
-                .dependency
-                .iter()
-                .filter(|&d| d.version == Version::new(0, 0, 0))
-            {
-                let versions = api_get_versions(x.name.to_owned()).await.unwrap();
-                let min_version = versions.iter().min().unwrap();
-                log::error!("........: {:?} {:?} {:?}", x, version, min_version)
-            }
-
-            match db_save_one(c.clone()).await {
-                Ok(_) => {}
-                Err(e) => log::error!("flow: get one: failed to save to database {:?}", e),
-            }
-
-            Ok(c)
-        }
-        Err(e) => {
-            log::error!("flow: get one: failed to make api call {:?}", e);
-            Err(e)
-        }
+    log::info!("{}: checking for version 0.0.0", fn_name);
+    for offending_crate_dependency in api_crate
+        .dependency
+        .iter()
+        .filter(|&d| d.version == Version::new(0, 0, 0))
+    {
+        log::info!(
+            "{} offending_crate_dependency={:?}",
+            fn_name,
+            offending_crate_dependency
+        );
+        let versions = api_get_versions(offending_crate_dependency.name.to_owned())
+            .await
+            .unwrap();
+        let min_version = versions.iter().min().unwrap();
+        log::info!(
+            "{} versions={:?} min_version={:?}",
+            fn_name,
+            version,
+            min_version
+        );
     }
+
+    db_save_one(api_crate.clone()).await?;
+
+    Ok(api_crate)
 }
 
 // https://stackoverflow.com/questions/31362206/expected-bound-lifetime-parameter-found-concrete-lifetime-e0271/31365625#31365625
