@@ -10,7 +10,10 @@ pub async fn query(name: String, version: String) -> Result<Crate, String> {
     );
 
     let client = Client::builder()
-        .header("User-Agent", "rust-kata-001 (https://github.com/agabani/rust-kata-001)")
+        .header(
+            "User-Agent",
+            "rust-kata-001 (https://github.com/agabani/rust-kata-001)",
+        )
         .finish();
 
     let response = client.get(url).send().await;
@@ -84,8 +87,7 @@ impl DependenciesApiDto {
 
             if char == '*' && dots > 0 && chars.last() == Some(&'.') {
                 chars.push('0');
-            }
-            else {
+            } else {
                 chars.push(char);
             }
         }

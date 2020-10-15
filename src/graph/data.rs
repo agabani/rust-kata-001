@@ -3,11 +3,10 @@ use sqlx::{MySqlPool, Row};
 use std::collections::HashMap;
 
 pub struct CrateDataDto {
-    pub(crate) id: i32,
     pub(crate) name: String,
     pub(crate) version: String,
-    pub(crate) dependency_name: String,
-    pub(crate) dependency_version: String,
+    pub(crate) dependency_name: Option<String>,
+    pub(crate) dependency_version: Option<String>,
 }
 
 impl CrateDataDto {
@@ -16,21 +15,26 @@ impl CrateDataDto {
         name: String,
         version: String,
     ) -> Result<Option<Crate>, sqlx::Error> {
-        let records = sqlx::query("SELECT * FROM crate_deps WHERE name = ? AND version = ?")
-            .bind(name)
-            .bind(version)
-            .fetch_all(pool)
-            .await?;
+        let records = sqlx::query(
+            "SELECT c.name, c.version, cd.name, cd.version
+FROM crate AS c
+         LEFT JOIN crate_dependency cd on c.id = cd.crate_id
+WHERE c.name = ?
+  AND c.version = ?",
+        )
+        .bind(name)
+        .bind(version)
+        .fetch_all(pool)
+        .await?;
 
         let mut crate_deps = Vec::new();
 
         for record in records {
             crate_deps.push(CrateDataDto {
-                id: record.get(0),
-                name: record.get(1),
-                version: record.get(2),
-                dependency_name: record.get(3),
-                dependency_version: record.get(4),
+                name: record.get(0),
+                version: record.get(1),
+                dependency_name: record.get(2),
+                dependency_version: record.get(3),
             });
         }
 
@@ -44,16 +48,25 @@ impl CrateDataDto {
     }
 
     pub async fn save_one(pool: &MySqlPool, c: Crate) -> Result<(), sqlx::Error> {
-        let dtos = Self::transform_to_data(&[&c]);
-
         let transaction = pool.begin().await?;
 
-        for dto in dtos {
-            sqlx::query("INSERT INTO crate_deps (name, version, dependency_name, dependency_version) VALUE (?, ?, ?, ?)")
-                .bind(dto.name)
-                .bind(dto.version)
-                .bind(dto.dependency_name)
-                .bind(dto.dependency_version)
+        sqlx::query("INSERT INTO crate (name, version) VALUE (?, ?)")
+            .bind(c.name)
+            .bind(c.version.to_string())
+            .execute(pool)
+            .await?;
+
+        let row = sqlx::query("SELECT LAST_INSERT_ID()")
+            .fetch_one(pool)
+            .await?;
+
+        let id: u64 = row.get(0);
+
+        for d in c.dependency {
+            sqlx::query("INSERT INTO crate_dependency (crate_id, name, version) VALUE (?, ?, ?)")
+                .bind(id)
+                .bind(d.name)
+                .bind(d.version.to_string())
                 .execute(pool)
                 .await?;
         }
@@ -84,34 +97,20 @@ impl CrateDataDto {
             };
 
             for item in group {
-                web_dto.dependency.push(CrateDependency {
-                    name: item.dependency_name.clone(),
-                    version: semver::Version::parse(&item.dependency_version).unwrap(),
-                });
+                if let Some(name) = &item.dependency_name {
+                    if let Some(version) = &item.dependency_version {
+                        web_dto.dependency.push(CrateDependency {
+                            name: name.to_owned(),
+                            version: semver::Version::parse(version).unwrap(),
+                        });
+                    }
+                }
             }
 
             result.push(web_dto);
         }
 
         result
-    }
-
-    fn transform_to_data(crates: &[&Crate]) -> Vec<Self> {
-        let mut dtos = Vec::new();
-
-        for c in crates {
-            for d in &c.dependency {
-                dtos.push(CrateDataDto {
-                    id: 0,
-                    name: c.name.clone(),
-                    version: c.version.to_string(),
-                    dependency_name: d.name.clone(),
-                    dependency_version: d.version.to_string(),
-                })
-            }
-        }
-
-        dtos
     }
 }
 
@@ -123,25 +122,22 @@ mod tests {
     fn transform() {
         let input = vec![
             CrateDataDto {
-                id: 1,
                 name: "name 1".to_owned(),
                 version: "version 1".to_owned(),
-                dependency_name: "sub name 1".to_owned(),
-                dependency_version: "sub version 1".to_owned(),
+                dependency_name: Some("sub name 1".to_owned()),
+                dependency_version: Some("sub version 1".to_owned()),
             },
             CrateDataDto {
-                id: 2,
                 name: "name 1".to_owned(),
                 version: "version 1".to_owned(),
-                dependency_name: "sub name 2".to_owned(),
-                dependency_version: "sub version 2".to_owned(),
+                dependency_name: Some("sub name 2".to_owned()),
+                dependency_version: Some("sub version 2".to_owned()),
             },
             CrateDataDto {
-                id: 2,
                 name: "name 2".to_owned(),
                 version: "version 2".to_owned(),
-                dependency_name: "sub name 1".to_owned(),
-                dependency_version: "sub version 1".to_owned(),
+                dependency_name: Some("sub name 1".to_owned()),
+                dependency_version: Some("sub version 1".to_owned()),
             },
         ];
 

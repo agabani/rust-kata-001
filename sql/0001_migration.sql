@@ -1,14 +1,24 @@
-create table `rust-kata-001`.crate_deps
+create table crate
 (
-    id                 int auto_increment
+    id      int auto_increment
         primary key,
-    name               varchar(64) charset utf8 not null,
-    version            varchar(40) charset utf8 not null,
-    dependency_name    varchar(64) charset utf8 not null,
-    dependency_version varchar(40) charset utf8 not null,
-    constraint crate_deps_name_version_dependency_name_uindex
-        unique (name, version, dependency_name)
+    name    varchar(64) charset utf8 not null,
+    version varchar(40) charset utf8 not null,
+    constraint crate_name_version_uindex
+        unique (name, version)
 );
 
-create index crate_deps_dependency_name_dependency_version_index
-    on `rust-kata-001`.crate_deps (dependency_name, dependency_version);
+create table crate_dependency
+(
+    id       int auto_increment
+        primary key,
+    crate_id int                      null,
+    name     varchar(64) charset utf8 not null,
+    version  varchar(40) charset utf8 not null,
+    constraint crate_dependency_name_version_crate_id_uindex
+        unique (name, version, crate_id),
+    constraint crate_dependency_crate_id_fk
+        foreign key (crate_id) references crate (id)
+            on delete cascade
+);
+
