@@ -3,11 +3,12 @@ mod client;
 use super::domain::Crate;
 use crate::graph::domain::CrateDependency;
 use semver::Version;
+use std::collections::HashMap;
 
 pub async fn dependencies(name: String, version: String) -> Result<Crate, String> {
     let dto = client::dependencies(name.to_owned(), version.to_owned()).await?;
 
-    let mut crate_dependencies = Vec::new();
+    let mut crate_dependencies = HashMap::new();
 
     if let Some(mut dependencies) = dto.dependencies {
         for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
@@ -18,10 +19,15 @@ pub async fn dependencies(name: String, version: String) -> Result<Crate, String
             if version_components.len() >= 3
                 && version_components.iter().take(3).all(|&p| !p.contains("*"))
             {
-                crate_dependencies.push(CrateDependency {
-                    name: dependency.crate_id.to_owned(),
-                    version: Version::parse(&version).unwrap(),
-                })
+                crate_dependencies
+                    .entry((
+                        dependency.crate_id.to_owned(),
+                        Version::parse(&version).unwrap(),
+                    ))
+                    .or_insert(CrateDependency {
+                        name: dependency.crate_id.to_owned(),
+                        version: Version::parse(&version).unwrap(),
+                    });
             } else {
                 // TODO: do version discovery
             }
@@ -31,7 +37,7 @@ pub async fn dependencies(name: String, version: String) -> Result<Crate, String
     Ok(Crate {
         name,
         version: semver::Version::parse(&version).unwrap(),
-        dependency: crate_dependencies,
+        dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
     })
 }
 
