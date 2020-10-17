@@ -10,14 +10,14 @@ pub async fn dependencies(name: String, version: String) -> Result<Crate, String
 
     let mut crate_dependencies = HashMap::new();
 
-    if let Some(mut dependencies) = dto.dependencies {
+    if let Some(dependencies) = dto.dependencies {
         for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
             let version = sanitise_version(&dependency.req);
 
             let version_components = version.split('.').collect::<Vec<_>>();
 
             if version_components.len() >= 3
-                && version_components.iter().take(3).all(|&p| !p.contains("*"))
+                && version_components.iter().take(3).all(|&p| !p.contains('*'))
             {
                 crate_dependencies
                     .entry((

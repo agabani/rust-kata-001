@@ -1,4 +1,3 @@
-use crate::graph::domain::{Crate, CrateDependency};
 use actix_web::client::Client;
 use semver::Version;
 use serde::Deserialize;
