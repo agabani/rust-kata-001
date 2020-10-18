@@ -44,7 +44,7 @@ where
     while !stack.is_empty() {
         if let Some((name, version)) = stack.pop() {
             if !hash.contains_key(&(name.to_owned(), version.to_owned())) {
-                let c = get_one(
+                let mut c = get_one(
                     db_get_one,
                     db_save_one,
                     api_get_one,
@@ -54,19 +54,24 @@ where
                 )
                 .await?;
 
+                c.dependency
+                    .sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+
                 let mut d = c
                     .dependency
                     .iter()
                     .map(|c| (c.name.to_owned(), c.version.to_owned()))
                     .collect::<Vec<_>>();
-                stack.append(&mut d);
 
+                stack.append(&mut d);
                 hash.insert((c.name.to_owned(), c.version.to_owned()), c.to_owned());
             }
         }
     }
 
-    let x = hash.into_iter().map(|(_, c)| c).collect();
+    let mut x = hash.into_iter().map(|(_, c)| c).collect::<Vec<_>>();
+
+    x.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
 
     Ok(x)
 }
