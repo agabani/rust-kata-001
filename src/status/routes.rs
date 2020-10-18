@@ -1,5 +1,4 @@
-use super::models::GetResponse;
-use crate::status::{database, runtime};
+use crate::status::{database, internet, runtime};
 use actix_web::web::ServiceConfig;
 use actix_web::{get, HttpResponse, Responder};
 use std::collections::HashMap;
@@ -10,9 +9,22 @@ pub async fn get(db_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>) -> impl 
         .await
         .unwrap_or_else(error_to_model);
 
+    let internet_http = internet::http().await.unwrap_or_else(error_to_model);
+    let internet_https = internet::https().await.unwrap_or_else(error_to_model);
     let runtime = runtime::runtime().await.unwrap_or_else(error_to_model);
 
-    HttpResponse::Ok().json(GetResponse { database, runtime })
+    let mut map = HashMap::new();
+
+    map.entry("database").or_insert(database);
+    map.entry("internet_http").or_insert(internet_http);
+    map.entry("internet_https").or_insert(internet_https);
+    map.entry("runtime").or_insert(runtime);
+
+    if map.iter().all(|(&k, v)| k == "healthy") {
+        HttpResponse::Ok().json(map)
+    } else {
+        HttpResponse::InternalServerError().json(map)
+    }
 }
 
 fn error_to_model(reason: String) -> HashMap<String, String> {

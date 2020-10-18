@@ -1,3 +1,4 @@
+mod client;
 mod example;
 mod graph;
 mod status;

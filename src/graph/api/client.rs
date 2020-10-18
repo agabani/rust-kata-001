@@ -1,15 +1,6 @@
-use actix_web::client::Client;
+use crate::client;
 use semver::Version;
 use serde::Deserialize;
-
-fn client() -> Client {
-    Client::builder()
-        .header(
-            "User-Agent",
-            "rust-kata-001 (https://github.com/agabani/rust-kata-001)",
-        )
-        .finish()
-}
 
 pub(crate) async fn dependencies(
     name: String,
@@ -23,7 +14,7 @@ pub(crate) async fn dependencies(
     );
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client().get(url).send().await.map_err(|e| {
+    let mut response = client::client().get(url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;
@@ -44,7 +35,7 @@ pub(crate) async fn versions(name: String) -> Result<VersionsApiDto, String> {
     let url = format!("https://crates.io/api/v1/crates/{}", name);
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client().get(url).send().await.map_err(|e| {
+    let mut response = client::client().get(url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;
