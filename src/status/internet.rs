@@ -1,11 +1,12 @@
-use crate::client::client;
 use std::collections::HashMap;
 
-pub async fn https() -> Result<HashMap<String, String>, String> {
-    let fn_name = "https";
+pub async fn http(
+    http_client: &actix_web::client::Client,
+) -> Result<HashMap<String, String>, String> {
+    let fn_name = "http";
 
-    let response = client()
-        .get("https://httpbin.org/anything")
+    let response = http_client
+        .get("http://httpbin.org/anything")
         .send()
         .await
         .map_err(|e| {
@@ -16,11 +17,13 @@ pub async fn https() -> Result<HashMap<String, String>, String> {
     Ok(status_code_to_model(response.status().as_u16()))
 }
 
-pub async fn http() -> Result<HashMap<String, String>, String> {
-    let fn_name = "http";
+pub async fn https(
+    http_client: &actix_web::client::Client,
+) -> Result<HashMap<String, String>, String> {
+    let fn_name = "https";
 
-    let response = client()
-        .get("http://httpbin.org/anything")
+    let response = http_client
+        .get("https://httpbin.org/anything")
         .send()
         .await
         .map_err(|e| {

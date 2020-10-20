@@ -5,8 +5,12 @@ use crate::graph::domain::CrateDependency;
 use semver::Version;
 use std::collections::HashMap;
 
-pub async fn dependencies(name: String, version: String) -> Result<Crate, String> {
-    let dto = client::dependencies(name.to_owned(), version.to_owned()).await?;
+pub async fn dependencies(
+    client: &actix_web::client::Client,
+    name: String,
+    version: String,
+) -> Result<Crate, String> {
+    let dto = client::dependencies(client, name.to_owned(), version.to_owned()).await?;
 
     let mut crate_dependencies = HashMap::new();
 

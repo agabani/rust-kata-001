@@ -1,8 +1,9 @@
-use crate::client;
+use actix_web::client::Client;
 use semver::Version;
 use serde::Deserialize;
 
 pub(crate) async fn dependencies(
+    client: &Client,
     name: String,
     version: String,
 ) -> Result<DependenciesApiDto, String> {
@@ -14,7 +15,7 @@ pub(crate) async fn dependencies(
     );
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client::client().get(url).send().await.map_err(|e| {
+    let mut response = client.get(url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;
@@ -29,13 +30,13 @@ pub(crate) async fn dependencies(
     Ok(dto)
 }
 
-pub(crate) async fn versions(name: String) -> Result<VersionsApiDto, String> {
+pub(crate) async fn versions(client: &Client, name: String) -> Result<VersionsApiDto, String> {
     let fn_name = "versions";
 
     let url = format!("https://crates.io/api/v1/crates/{}", name);
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client::client().get(url).send().await.map_err(|e| {
+    let mut response = client.get(url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;

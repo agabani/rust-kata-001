@@ -4,13 +4,20 @@ use actix_web::{get, HttpResponse, Responder};
 use std::collections::HashMap;
 
 #[get("/status")]
-pub async fn get(db_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>) -> impl Responder {
-    let database = database::database(db_pool.get_ref())
+pub async fn get(
+    api_client: actix_web::web::Data<actix_web::client::Client>,
+    database_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>,
+) -> impl Responder {
+    let database = database::database(database_pool.get_ref())
         .await
         .unwrap_or_else(error_to_model);
 
-    let internet_http = internet::http().await.unwrap_or_else(error_to_model);
-    let internet_https = internet::https().await.unwrap_or_else(error_to_model);
+    let internet_http = internet::http(api_client.get_ref())
+        .await
+        .unwrap_or_else(error_to_model);
+    let internet_https = internet::https(api_client.get_ref())
+        .await
+        .unwrap_or_else(error_to_model);
     let runtime = runtime::runtime().await.unwrap_or_else(error_to_model);
 
     let mut map = HashMap::new();
