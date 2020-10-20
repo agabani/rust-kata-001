@@ -20,7 +20,7 @@ pub async fn get(db_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>) -> impl 
     map.entry("internet_https").or_insert(internet_https);
     map.entry("runtime").or_insert(runtime);
 
-    if map.iter().all(|(&k, v)| k == "healthy") {
+    if map.iter().all(|(&k, _)| k == "healthy") {
         HttpResponse::Ok().json(map)
     } else {
         HttpResponse::InternalServerError().json(map)

@@ -153,50 +153,56 @@ mod tests {
         let input = vec![
             CrateDataDto {
                 name: "name 1".to_owned(),
-                version: "version 1".to_owned(),
+                version: "1.0.0".to_owned(),
                 dependency_name: Some("sub name 1".to_owned()),
-                dependency_version: Some("sub version 1".to_owned()),
+                dependency_version: Some("0.0.1".to_owned()),
             },
             CrateDataDto {
                 name: "name 1".to_owned(),
-                version: "version 1".to_owned(),
+                version: "1.0.0".to_owned(),
                 dependency_name: Some("sub name 2".to_owned()),
-                dependency_version: Some("sub version 2".to_owned()),
+                dependency_version: Some("0.0.2".to_owned()),
             },
             CrateDataDto {
                 name: "name 2".to_owned(),
-                version: "version 2".to_owned(),
+                version: "2.0.0".to_owned(),
                 dependency_name: Some("sub name 1".to_owned()),
-                dependency_version: Some("sub version 1".to_owned()),
+                dependency_version: Some("0.0.1".to_owned()),
             },
         ];
 
         let expected = vec![
             Crate {
                 name: "name 1".to_owned(),
-                version: semver::Version::parse("version 1").unwrap(),
+                version: semver::Version::parse("1.0.0").unwrap(),
                 dependency: vec![
                     CrateDependency {
                         name: "sub name 1".to_owned(),
-                        version: semver::Version::parse("sub version 1").unwrap(),
+                        version: semver::Version::parse("0.0.1").unwrap(),
                     },
                     CrateDependency {
                         name: "sub name 2".to_owned(),
-                        version: semver::Version::parse("sub version 2").unwrap(),
+                        version: semver::Version::parse("0.0.2").unwrap(),
                     },
                 ],
             },
             Crate {
                 name: "name 2".to_owned(),
-                version: semver::Version::parse("version 2").unwrap(),
+                version: semver::Version::parse("2.0.0").unwrap(),
                 dependency: vec![CrateDependency {
                     name: "sub name 1".to_owned(),
-                    version: semver::Version::parse("sub version 1").unwrap(),
+                    version: semver::Version::parse("0.0.1").unwrap(),
                 }],
             },
         ];
 
-        let actual = CrateDataDto::transform_to_domain(&input);
+        let mut actual = CrateDataDto::transform_to_domain(&input);
+
+        actual.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+        for d in actual.iter_mut() {
+            d.dependency
+                .sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+        }
 
         assert_eq!(actual, expected);
     }

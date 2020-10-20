@@ -52,30 +52,30 @@ mod tests {
     fn transform() {
         let input = Crate {
             name: "name".to_owned(),
-            version: semver::Version::parse("version").unwrap(),
+            version: semver::Version::parse("1.0.0").unwrap(),
             dependency: vec![
                 CrateDependency {
                     name: "sub name 1".to_owned(),
-                    version: semver::Version::parse("sub version 1").unwrap(),
+                    version: semver::Version::parse("0.0.1").unwrap(),
                 },
                 CrateDependency {
                     name: "sub name 2".to_owned(),
-                    version: semver::Version::parse("sub version 2").unwrap(),
+                    version: semver::Version::parse("0.0.2").unwrap(),
                 },
             ],
         };
 
         let expected = CrateWebDto {
             name: "name".to_owned(),
-            version: "version".to_owned(),
+            version: "1.0.0".to_owned(),
             dependency: vec![
                 CrateDependencyWebDto {
                     name: "sub name 1".to_owned(),
-                    version: "sub version 1".to_owned(),
+                    version: "0.0.1".to_owned(),
                 },
                 CrateDependencyWebDto {
                     name: "sub name 2".to_owned(),
-                    version: "sub version 2".to_owned(),
+                    version: "0.0.2".to_owned(),
                 },
             ],
         };

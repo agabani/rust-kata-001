@@ -41,7 +41,7 @@ pub async fn dependencies(name: String, version: String) -> Result<Crate, String
     })
 }
 
-pub async fn versions(name: String) -> Result<Vec<semver::Version>, String> {
+pub async fn versions(_: String) -> Result<Vec<semver::Version>, String> {
     // TODO: delete this method, this package acts like an anti corruption layer to the rest of the application
 
     Err("Not Implemented".to_owned())
