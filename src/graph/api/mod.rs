@@ -6,7 +6,7 @@ use semver::Version;
 use std::collections::HashMap;
 
 pub async fn dependencies(
-    client: &actix_web::client::Client,
+    client: &reqwest::Client,
     name: String,
     version: String,
 ) -> Result<Crate, String> {

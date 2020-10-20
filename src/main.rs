@@ -22,9 +22,11 @@ async fn main() -> Result<(), String> {
         format!("{}: error: {:?}", fn_name, e)
     })?;
 
+    let http_client = http_client::new()?;
+
     let server = actix_web::HttpServer::new(move || {
         actix_web::App::new()
-            .data(http_client::new())
+            .data(http_client.clone())
             .data(database_pool.clone())
             .configure(graph::configure)
             .configure(status::configure)

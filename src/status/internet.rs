@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-pub async fn http(
-    http_client: &actix_web::client::Client,
-) -> Result<HashMap<String, String>, String> {
+pub async fn http(http_client: &reqwest::Client) -> Result<HashMap<String, String>, String> {
     let fn_name = "http";
 
     let response = http_client
@@ -17,9 +15,7 @@ pub async fn http(
     Ok(status_code_to_model(response.status().as_u16()))
 }
 
-pub async fn https(
-    http_client: &actix_web::client::Client,
-) -> Result<HashMap<String, String>, String> {
+pub async fn https(http_client: &reqwest::Client) -> Result<HashMap<String, String>, String> {
     let fn_name = "https";
 
     let response = http_client

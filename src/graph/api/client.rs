@@ -1,9 +1,8 @@
-use actix_web::client::Client;
 use semver::Version;
 use serde::Deserialize;
 
 pub(crate) async fn dependencies(
-    client: &Client,
+    client: &reqwest::Client,
     name: String,
     version: String,
 ) -> Result<DependenciesApiDto, String> {
@@ -15,7 +14,7 @@ pub(crate) async fn dependencies(
     );
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client.get(url).send().await.map_err(|e| {
+    let response = client.get(&url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;
@@ -30,26 +29,25 @@ pub(crate) async fn dependencies(
     Ok(dto)
 }
 
-pub(crate) async fn versions(client: &Client, name: String) -> Result<VersionsApiDto, String> {
+pub(crate) async fn versions(
+    client: &reqwest::Client,
+    name: String,
+) -> Result<VersionsApiDto, String> {
     let fn_name = "versions";
 
     let url = format!("https://crates.io/api/v1/crates/{}", name);
     log::info!("{}: url={}", fn_name, url);
 
-    let mut response = client.get(url).send().await.map_err(|e| {
+    let response = client.get(&url).send().await.map_err(|e| {
         log::error!("{}: send request error {:?}", fn_name, e);
         format!("{}: send request error: {:?}", fn_name, e)
     })?;
     log::info!("{}: status={}", fn_name, response.status());
 
-    let dto = response
-        .json::<VersionsApiDto>()
-        .limit(20_000_000)
-        .await
-        .map_err(|e| {
-            log::error!("{}: json payload error {:?}", fn_name, e);
-            format!("{}: json payload error: {:?}", fn_name, e)
-        })?;
+    let dto = response.json::<VersionsApiDto>().await.map_err(|e| {
+        log::error!("{}: json payload error {:?}", fn_name, e);
+        format!("{}: json payload error: {:?}", fn_name, e)
+    })?;
     log::info!("{}: dto={:?}", fn_name, dto);
 
     Ok(dto)

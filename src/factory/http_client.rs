@@ -1,8 +1,19 @@
-pub fn new() -> actix_web::client::Client {
-    actix_web::client::Client::builder()
-        .header(
-            "User-Agent",
+pub fn new() -> Result<reqwest::Client, String> {
+    let fn_name = "new";
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        reqwest::header::HeaderValue::from_static(
             "rust-kata-001 (https://github.com/agabani/rust-kata-001)",
-        )
-        .finish()
+        ),
+    );
+
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error: {:?}", fn_name, e)
+        })
 }

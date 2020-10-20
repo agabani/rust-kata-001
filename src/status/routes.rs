@@ -5,17 +5,17 @@ use std::collections::HashMap;
 
 #[get("/status")]
 pub async fn get(
-    api_client: actix_web::web::Data<actix_web::client::Client>,
+    http_client: actix_web::web::Data<reqwest::Client>,
     database_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>,
 ) -> impl Responder {
     let database = database::database(database_pool.get_ref())
         .await
         .unwrap_or_else(error_to_model);
 
-    let internet_http = internet::http(api_client.get_ref())
+    let internet_http = internet::http(http_client.get_ref())
         .await
         .unwrap_or_else(error_to_model);
-    let internet_https = internet::https(api_client.get_ref())
+    let internet_https = internet::https(http_client.get_ref())
         .await
         .unwrap_or_else(error_to_model);
     let runtime = runtime::runtime().await.unwrap_or_else(error_to_model);

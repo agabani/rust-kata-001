@@ -6,8 +6,8 @@ use sqlx::mysql;
 
 #[get("")]
 pub async fn list(
-    api_client: web::Data<actix_web::client::Client>,
     database_pool: web::Data<mysql::MySqlPool>,
+    http_client: web::Data<reqwest::Client>,
     query_parameters: web::Query<models::ListQueryParams>,
 ) -> impl Responder {
     // request
@@ -40,7 +40,7 @@ pub async fn list(
         |c: Crate| async { data::CrateDataDto::save_one(database_pool.get_ref(), c).await };
 
     let api_get_one = |name: String, version: String| async {
-        api::dependencies(api_client.get_ref(), name, version).await
+        api::dependencies(http_client.get_ref(), name, version).await
     };
 
     let api_get_versions = |name: String| async { api::versions(name).await };
