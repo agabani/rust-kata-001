@@ -18,11 +18,11 @@ pub async fn dependencies(
         for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
             let version = sanitise_version(&dependency.req);
 
-            let version_components = version.split('.').collect::<Vec<_>>();
+            let version_components = version
+                .split(|c: char| c == '.' || c == '-')
+                .collect::<Vec<_>>();
 
-            if version_components.len() >= 3
-                && version_components.iter().take(3).all(|&p| !p.contains('*'))
-            {
+            if version_components.iter().take(3).all(|&p| !p.contains('*')) {
                 crate_dependencies
                     .entry((
                         dependency.crate_id.to_owned(),
@@ -33,6 +33,41 @@ pub async fn dependencies(
                         version: Version::parse(&version).unwrap(),
                     });
             } else {
+                let minimum_version_components =
+                    version_components
+                        .iter()
+                        .map(|&f| if f == "*" { "0" } else { f });
+
+                let minimum_version = minimum_version_components.collect::<Vec<_>>().join(".");
+
+                let versions_dto = client::versions(client, dependency.crate_id.to_owned()).await?;
+
+                let all_versions = versions_dto
+                    .versions
+                    .unwrap()
+                    .iter()
+                    .map(|f| semver::Version::parse(&f.num).unwrap())
+                    .collect::<Vec<_>>();
+
+                log::info!("minimum version = {:?}", minimum_version);
+                let version_req = semver::VersionReq::parse(&minimum_version).unwrap();
+
+                let mut filtered_versions = all_versions
+                    .iter()
+                    .filter(|&v| version_req.matches(v))
+                    .collect::<Vec<_>>();
+
+                filtered_versions.sort();
+
+                let best_version = filtered_versions.swap_remove(0);
+
+                crate_dependencies
+                    .entry((dependency.crate_id.to_owned(), best_version.to_owned()))
+                    .or_insert(CrateDependency {
+                        name: dependency.crate_id.to_owned(),
+                        version: best_version.to_owned(),
+                    });
+
                 // TODO: do version discovery
             }
         }
@@ -78,7 +113,23 @@ fn sanitise_version(version: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::factory::http_client;
-    use crate::graph::api::dependencies;
+    use crate::graph::api::{dependencies, sanitise_version};
+
+    #[test]
+    fn unit_sanitise_version() {
+        assert_eq!(sanitise_version("1"), "1.*.*");
+        assert_eq!(sanitise_version("2.3"), "2.3.*");
+        assert_eq!(sanitise_version("4.5.6"), "4.5.6");
+        assert_eq!(sanitise_version("7.8.9-b"), "7.8.9-b");
+    }
+
+    #[test]
+    fn discovery() {
+        let version_req = semver::VersionReq::parse("1").unwrap();
+        let version = semver::Version::parse("1.0.1").unwrap();
+
+        assert!(version_req.matches(&version))
+    }
 
     #[actix_rt::test]
     #[ignore]
@@ -93,7 +144,7 @@ mod tests {
         assert_eq!(c.version, semver::Version::new(0, 2, 22));
 
         let dependencies = c.dependency;
-        assert_eq!(dependencies.len(), 12);
+        assert_eq!(dependencies.len(), 8);
 
         // concrete
         assert!(dependencies
@@ -106,31 +157,22 @@ mod tests {
         // inference
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "libc" && d.version == semver::Version::new(0, 2, 00)));
+            .any(|d| d.name == "libc" && d.version == semver::Version::new(0, 2, 0)));
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "rand" && d.version == semver::Version::new(0, 7, 00)));
+            .any(|d| d.name == "rand" && d.version == semver::Version::new(0, 7, 0)));
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "standback" && d.version == semver::Version::new(0, 2, 00)));
+            .any(|d| d.name == "stdweb" && d.version == semver::Version::new(0, 4, 0)));
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "stdweb" && d.version == semver::Version::new(0, 4, 00)));
+            .any(|d| d.name == "serde" && d.version == semver::Version::new(1, 0, 0)));
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "serde" && d.version == semver::Version::new(1, 00, 00)));
+            .any(|d| d.name == "time-macros" && d.version == semver::Version::new(0, 1, 0)));
         assert!(dependencies
             .iter()
-            .any(|d| d.name == "serde_json" && d.version == semver::Version::new(1, 00, 00)));
-        assert!(dependencies
-            .iter()
-            .any(|d| d.name == "time-macros" && d.version == semver::Version::new(0, 1, 00)));
-        assert!(dependencies
-            .iter()
-            .any(|d| d.name == "version_check" && d.version == semver::Version::new(0, 9, 00)));
-        assert!(dependencies
-            .iter()
-            .any(|d| d.name == "winapi" && d.version == semver::Version::new(0, 3, 00)));
+            .any(|d| d.name == "winapi" && d.version == semver::Version::new(0, 3, 0)));
 
         Ok(())
     }
