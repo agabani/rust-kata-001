@@ -112,3 +112,36 @@ Targets
     "downloads": 0
 },
 ```
+
+https://crates.io/api/v1/crates/yaml-rust/0.3.5/dependencies
+Multi req
+```
+{
+    "dependencies": [
+        {
+            "id": 133310,
+            "version_id": 38451,
+            "crate_id": "clippy",
+            "req": "0.*",
+            "optional": true,
+            "default_features": true,
+            "features": [],
+            "target": null,
+            "kind": "normal",
+            "downloads": 0
+        },
+        {
+            "id": 133309,
+            "version_id": 38451,
+            "crate_id": "linked-hash-map",
+            "req": ">=0.0.9, <0.4",
+            "optional": true,
+            "default_features": true,
+            "features": [],
+            "target": null,
+            "kind": "normal",
+            "downloads": 0
+        }
+    ]
+}
+```

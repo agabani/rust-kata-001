@@ -14,7 +14,7 @@ pub async fn dependencies(
 
     let mut crate_dependencies = HashMap::new();
 
-    if let Some(dependencies) = dto.dependencies {
+    if let Some(dependencies) = &dto.dependencies {
         for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
             let version = sanitise_version(&dependency.req);
 
@@ -33,24 +33,15 @@ pub async fn dependencies(
                         version: Version::parse(&version).unwrap(),
                     });
             } else {
-                let minimum_version_components =
-                    version_components
-                        .iter()
-                        .map(|&f| if f == "*" { "0" } else { f });
-
-                let minimum_version = minimum_version_components.collect::<Vec<_>>().join(".");
-
-                let versions_dto = client::versions(client, dependency.crate_id.to_owned()).await?;
-
-                let all_versions = versions_dto
+                let all_versions = client::versions(client, dependency.crate_id.to_owned())
+                    .await?
                     .versions
                     .unwrap()
                     .iter()
                     .map(|f| semver::Version::parse(&f.num).unwrap())
                     .collect::<Vec<_>>();
 
-                log::info!("minimum version = {:?}", minimum_version);
-                let version_req = semver::VersionReq::parse(&minimum_version).unwrap();
+                let version_req = semver::VersionReq::parse(&dependency.req).unwrap();
 
                 let mut filtered_versions = all_versions
                     .iter()
@@ -176,4 +167,23 @@ mod tests {
 
         Ok(())
     }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn integration_edge_case_multiple_versions() -> Result<(), String> {
+        let client = http_client::new()?;
+
+        let c = dependencies(&client, "yaml-rust".to_owned(), "0.3.5".to_owned()).await?;
+
+        println!("{:?}", c);
+
+        assert_eq!(c.name, "yaml-rust");
+        assert_eq!(c.version, semver::Version::new(0, 3, 5));
+
+        let dependencies = c.dependency;
+        assert_eq!(dependencies.len(), 8);
+
+        Ok(())
+    }
+
 }
