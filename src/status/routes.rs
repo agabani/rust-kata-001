@@ -8,24 +8,22 @@ pub async fn get(
     http_client: actix_web::web::Data<reqwest::Client>,
     database_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>,
 ) -> impl Responder {
-    let database = database::database(database_pool.get_ref())
-        .await
-        .unwrap_or_else(error_to_model);
-
-    let internet_http = internet::http(http_client.get_ref())
-        .await
-        .unwrap_or_else(error_to_model);
-    let internet_https = internet::https(http_client.get_ref())
-        .await
-        .unwrap_or_else(error_to_model);
-    let runtime = runtime::runtime().await.unwrap_or_else(error_to_model);
+    let (database, internet_http, internet_https, runtime) = futures::join!(
+        database::database(database_pool.get_ref()),
+        internet::http(http_client.get_ref()),
+        internet::https(http_client.get_ref()),
+        runtime::runtime()
+    );
 
     let mut map = HashMap::new();
-
-    map.entry("database").or_insert(database);
-    map.entry("internet_http").or_insert(internet_http);
-    map.entry("internet_https").or_insert(internet_https);
-    map.entry("runtime").or_insert(runtime);
+    map.entry("database")
+        .or_insert_with(|| database.unwrap_or_else(error_to_model));
+    map.entry("internet_http")
+        .or_insert_with(|| internet_http.unwrap_or_else(error_to_model));
+    map.entry("internet_https")
+        .or_insert_with(|| internet_https.unwrap_or_else(error_to_model));
+    map.entry("runtime")
+        .or_insert_with(|| runtime.unwrap_or_else(error_to_model));
 
     if map.iter().all(|(&k, _)| k == "healthy") {
         HttpResponse::Ok().json(map)

@@ -67,7 +67,7 @@ pub async fn get_crate(
 
 fn to_requirements(requirements: &str) -> Vec<semver::VersionReq> {
     requirements
-        .split(",")
+        .split(',')
         .into_iter()
         .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
         .collect::<Vec<_>>()
@@ -81,7 +81,7 @@ fn sanitise_version(version: &str) -> Option<String> {
     // >=0.0.9, <0.4 -> none
 
     // check for multi requirements
-    if version.split(",").into_iter().count() > 1 {
+    if version.split(',').into_iter().count() > 1 {
         return None;
     }
 
@@ -100,11 +100,11 @@ fn sanitise_version(version: &str) -> Option<String> {
         return None;
     }
 
-    return Some(
+    Some(
         version
             .trim_start_matches(|p| !char::is_numeric(p))
             .to_owned(),
-    );
+    )
 }
 
 #[cfg(test)]

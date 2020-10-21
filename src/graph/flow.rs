@@ -17,14 +17,7 @@ where
     let mut hash = HashMap::new();
     let mut stack = Vec::new();
 
-    let parent = get_one(
-        db_get_one,
-        db_save_one,
-        api_get_one,
-        name,
-        version,
-    )
-    .await?;
+    let parent = get_one(db_get_one, db_save_one, api_get_one, name, version).await?;
 
     let mut d = parent
         .dependency
