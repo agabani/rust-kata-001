@@ -4,6 +4,7 @@ use super::domain::Crate;
 use crate::graph::domain::CrateDependency;
 use semver::Version;
 use std::collections::HashMap;
+use std::ptr::null;
 
 pub async fn dependencies(
     client: &reqwest::Client,
@@ -18,11 +19,7 @@ pub async fn dependencies(
         for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
             let version = sanitise_version(&dependency.req);
 
-            let version_components = version
-                .split(|c: char| c == '.' || c == '-')
-                .collect::<Vec<_>>();
-
-            if version_components.iter().take(3).all(|&p| !p.contains('*')) {
+            if let Some(version) = version {
                 crate_dependencies
                     .entry((
                         dependency.crate_id.to_owned(),
@@ -41,11 +38,11 @@ pub async fn dependencies(
                     .map(|f| semver::Version::parse(&f.num).unwrap())
                     .collect::<Vec<_>>();
 
-                let version_req = semver::VersionReq::parse(&dependency.req).unwrap();
+                let version_reqs = to_requirements(&dependency.req);
 
                 let mut filtered_versions = all_versions
                     .iter()
-                    .filter(|&v| version_req.matches(v))
+                    .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
                     .collect::<Vec<_>>();
 
                 filtered_versions.sort();
@@ -58,8 +55,6 @@ pub async fn dependencies(
                         name: dependency.crate_id.to_owned(),
                         version: best_version.to_owned(),
                     });
-
-                // TODO: do version discovery
             }
         }
     }
@@ -77,28 +72,46 @@ pub async fn versions(_: String) -> Result<Vec<semver::Version>, String> {
     Err("Not Implemented".to_owned())
 }
 
-fn sanitise_version(version: &str) -> String {
+fn to_requirements(requirements: &str) -> Vec<semver::VersionReq> {
+    requirements
+        .split(",")
+        .into_iter()
+        .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
+        .collect::<Vec<_>>()
+}
+
+fn sanitise_version(version: &str) -> Option<String> {
     // 0        -> 0.*.*
     // 0.0      -> 0.0.*
     // 0.0.0    -> 0.0.0
     // 0.0.0-b  -> 0.0.0-b
+    // >=0.0.9, <0.4 -> none
 
-    let mut dots = 2;
-    let mut chars = Vec::new();
-
-    for char in version.trim_start_matches(|p| !char::is_numeric(p)).chars() {
-        if char == '.' {
-            dots -= 1;
-        }
-        chars.push(char)
+    // check for multi requirements
+    if version.split(",").into_iter().count() > 1 {
+        return None;
     }
 
-    for _ in 0..dots {
-        chars.push('.');
-        chars.push('*');
+    // check for numerical major.minor.build-
+    let components = version
+        .split(|p| p == '.' || p == '-')
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if components.len() < 3
+        || components
+            .iter()
+            .take(3)
+            .any(|&s| s.chars().any(|c| !char::is_numeric(c)))
+    {
+        return None;
     }
 
-    chars.iter().collect()
+    return Some(
+        version
+            .trim_start_matches(|p| !char::is_numeric(p))
+            .to_owned(),
+    );
 }
 
 #[cfg(test)]
@@ -108,10 +121,20 @@ mod tests {
 
     #[test]
     fn unit_sanitise_version() {
-        assert_eq!(sanitise_version("1"), "1.*.*");
-        assert_eq!(sanitise_version("2.3"), "2.3.*");
-        assert_eq!(sanitise_version("4.5.6"), "4.5.6");
-        assert_eq!(sanitise_version("7.8.9-b"), "7.8.9-b");
+        // numbers
+        assert_eq!(sanitise_version("1"), None);
+        assert_eq!(sanitise_version("2.3"), None);
+        assert_eq!(sanitise_version("4.5.6"), Some("4.5.6".to_owned()));
+        assert_eq!(sanitise_version("7.8.9-b"), Some("7.8.9-b".to_owned()));
+
+        // wild cards
+        assert_eq!(sanitise_version("*"), None);
+        assert_eq!(sanitise_version("1.*"), None);
+        assert_eq!(sanitise_version("1.*.*"), None);
+        assert_eq!(sanitise_version("1.2.*"), None);
+
+        // requirements
+        assert_eq!(sanitise_version(">=0.0.9, <0.4"), None);
     }
 
     #[test]
@@ -181,9 +204,15 @@ mod tests {
         assert_eq!(c.version, semver::Version::new(0, 3, 5));
 
         let dependencies = c.dependency;
-        assert_eq!(dependencies.len(), 8);
+        assert_eq!(dependencies.len(), 2);
+
+        assert!(dependencies
+            .iter()
+            .any(|d| d.name == "clippy" && d.version == semver::Version::new(0, 0, 2)));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.name == "linked-hash-map" && d.version == semver::Version::new(0, 0, 9)));
 
         Ok(())
     }
-
 }
