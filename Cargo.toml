@@ -15,3 +15,6 @@ reqwest = { version = "0.10.8", features = [ "json", "rustls-tls", "gzip" ] }
 semver = "0.11.0"
 serde = "1.0.116"
 sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "macros", "mysql", "runtime-tokio" ] }
+
+[dev-dependencies]
+actix-rt = "1.1.1"

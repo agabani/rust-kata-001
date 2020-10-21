@@ -119,3 +119,69 @@ impl DependenciesApiDto {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::factory::http_client;
+    use crate::graph::api::client::{dependencies, versions};
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn integration_dependencies() -> Result<(), String> {
+        let client = http_client::new()?;
+
+        let result = dependencies(&client, "syn".to_owned(), "0.11.0".to_owned()).await?;
+
+        assert!(result.errors.is_none());
+        assert!(result.dependencies.is_some());
+
+        let dependencies = result.dependencies.unwrap();
+
+        assert_eq!(dependencies.len(), 8);
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "syntex_pos" && d.req == "^0.52.0"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "syntex_syntax" && d.req == "^0.52.0"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "tempdir" && d.req == "^0.3.5"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "time" && d.req == "^0.1.35"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "walkdir" && d.req == "^1.0.1"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "clippy" && d.req == "0.*"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "quote" && d.req == "^0.3.0"));
+        assert!(dependencies
+            .iter()
+            .any(|d| d.crate_id == "unicode-xid" && d.req == "^0.0.3"));
+
+        Ok(())
+    }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn integration_versions() -> Result<(), String> {
+        let client = http_client::new()?;
+
+        let result = versions(&client, "clippy".to_owned()).await?;
+
+        assert!(result.errors.is_none());
+        assert!(result.versions.is_some());
+
+        let versions = result.versions.unwrap();
+
+        assert!(versions.iter().any(|v| v.num == "0.0.2"));
+        assert!(versions.iter().any(|v| v.num == "0.0.135"));
+        assert!(versions.iter().any(|v| v.num == "0.0.302"));
+
+        Ok(())
+    }
+}
