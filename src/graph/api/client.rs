@@ -1,4 +1,3 @@
-use semver::Version;
 use serde::Deserialize;
 
 pub(crate) async fn dependencies(
@@ -87,37 +86,6 @@ pub(crate) struct VersionsApiDto {
 #[derive(Debug, Deserialize)]
 pub(crate) struct VersionApiDto {
     pub(crate) num: String,
-}
-
-impl DependenciesApiDto {
-    fn version(input: &str) -> Result<semver::Version, String> {
-        use std::iter::FromIterator;
-
-        let mut dots = 2;
-        let mut chars = Vec::new();
-
-        for char in input.trim_start_matches(|p| !char::is_numeric(p)).chars() {
-            if char == '.' {
-                dots -= 1;
-            }
-
-            if char == '*' && dots > 0 && chars.last() == Some(&'.') {
-                chars.push('0');
-            } else {
-                chars.push(char);
-            }
-        }
-
-        for _ in 0..dots {
-            chars.push('.');
-            chars.push('0');
-        }
-
-        match Version::parse(&String::from_iter(chars)) {
-            Ok(t) => Ok(t),
-            Err(e) => Err(e.to_string()),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -4,9 +4,8 @@ use super::domain::Crate;
 use crate::graph::domain::CrateDependency;
 use semver::Version;
 use std::collections::HashMap;
-use std::ptr::null;
 
-pub async fn dependencies(
+pub async fn get_crate(
     client: &reqwest::Client,
     name: String,
     version: String,
@@ -66,12 +65,6 @@ pub async fn dependencies(
     })
 }
 
-pub async fn versions(_: String) -> Result<Vec<semver::Version>, String> {
-    // TODO: delete this method, this package acts like an anti corruption layer to the rest of the application
-
-    Err("Not Implemented".to_owned())
-}
-
 fn to_requirements(requirements: &str) -> Vec<semver::VersionReq> {
     requirements
         .split(",")
@@ -117,7 +110,7 @@ fn sanitise_version(version: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use crate::factory::http_client;
-    use crate::graph::api::{dependencies, sanitise_version};
+    use crate::graph::api::{get_crate, sanitise_version};
 
     #[test]
     fn unit_sanitise_version() {
@@ -150,7 +143,7 @@ mod tests {
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let c = dependencies(&client, "time".to_owned(), "0.2.22".to_owned()).await?;
+        let c = get_crate(&client, "time".to_owned(), "0.2.22".to_owned()).await?;
 
         println!("{:?}", c);
 
@@ -196,7 +189,7 @@ mod tests {
     async fn integration_edge_case_multiple_versions() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let c = dependencies(&client, "yaml-rust".to_owned(), "0.3.5".to_owned()).await?;
+        let c = get_crate(&client, "yaml-rust".to_owned(), "0.3.5".to_owned()).await?;
 
         println!("{:?}", c);
 
