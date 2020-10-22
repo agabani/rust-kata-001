@@ -14,21 +14,9 @@ where
     DSO: Future<Output = Result<(), String>>,
     AGO: Future<Output = Result<Crate, String>>,
 {
-    let mut hash = HashMap::new();
-    let mut stack = Vec::new();
-
-    let parent = get_one(db_get_one, db_save_one, api_get_one, name, version).await?;
-
-    let mut d = parent
-        .dependency
-        .iter()
-        .map(|c| (c.name.to_owned(), c.version.to_owned()))
-        .collect::<Vec<_>>();
-    stack.append(&mut d);
-    hash.insert(
-        (parent.name.to_owned(), parent.version.to_owned()),
-        parent.to_owned(),
-    );
+    let mut hash: HashMap<(String, String), Crate> = HashMap::new();
+    let mut stack: Vec<(String, String)> = Vec::new();
+    stack.push((name, version));
 
     while !stack.is_empty() {
         if let Some((name, version)) = stack.pop() {
@@ -48,11 +36,11 @@ where
                 let mut d = c
                     .dependency
                     .iter()
-                    .map(|c| (c.name.to_owned(), c.version.to_owned()))
+                    .map(|c| (c.name.to_owned(), c.version.to_string()))
                     .collect::<Vec<_>>();
 
                 stack.append(&mut d);
-                hash.insert((c.name.to_owned(), c.version.to_owned()), c.to_owned());
+                hash.insert((c.name.to_owned(), c.version.to_string()), c.to_owned());
             }
         }
     }
