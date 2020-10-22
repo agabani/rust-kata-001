@@ -63,7 +63,7 @@ pub(crate) struct DependenciesApiDto {
     pub(crate) errors: Option<Vec<ErrorApiDto>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct DependencyApiDto {
     pub(crate) id: i32,
     pub(crate) version_id: i32,

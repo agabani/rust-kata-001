@@ -1,6 +1,7 @@
 mod client;
 
 use super::domain::Crate;
+use crate::graph::api::client::DependencyApiDto;
 use crate::graph::domain::CrateDependency;
 use semver::Version;
 use std::collections::HashMap;
@@ -14,47 +15,28 @@ pub async fn get_crate(
 
     let mut crate_dependencies = HashMap::new();
 
-    if let Some(dependencies) = &dto.dependencies {
-        for dependency in dependencies.iter().filter(|d| d.kind == "normal") {
-            let version = sanitise_version(&dependency.req);
+    if let Some(dependencies) = dto.dependencies {
+        let results = futures::future::join_all(
+            dependencies
+                .iter()
+                .filter(|&d| d.kind == "normal")
+                .map(|dependency| from_dto_to_domain(client, dependency.clone())),
+        )
+        .await
+        .iter_mut()
+        .map(|result| result.clone().unwrap())
+        .collect::<Vec<_>>();
 
-            if let Some(version) = version {
-                crate_dependencies
-                    .entry((
-                        dependency.crate_id.to_owned(),
-                        Version::parse(&version).unwrap(),
-                    ))
-                    .or_insert(CrateDependency {
-                        name: dependency.crate_id.to_owned(),
-                        version: Version::parse(&version).unwrap(),
-                    });
-            } else {
-                let all_versions = client::versions(client, dependency.crate_id.to_owned())
-                    .await?
-                    .versions
-                    .unwrap()
-                    .iter()
-                    .map(|f| semver::Version::parse(&f.num).unwrap())
-                    .collect::<Vec<_>>();
-
-                let version_reqs = to_requirements(&dependency.req);
-
-                let mut filtered_versions = all_versions
-                    .iter()
-                    .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
-                    .collect::<Vec<_>>();
-
-                filtered_versions.sort();
-
-                let best_version = filtered_versions.swap_remove(0);
-
-                crate_dependencies
-                    .entry((dependency.crate_id.to_owned(), best_version.to_owned()))
-                    .or_insert(CrateDependency {
-                        name: dependency.crate_id.to_owned(),
-                        version: best_version.to_owned(),
-                    });
-            }
+        for crate_dependency in results.iter() {
+            crate_dependencies
+                .entry((
+                    crate_dependency.name.to_owned(),
+                    crate_dependency.version.to_owned(),
+                ))
+                .or_insert(CrateDependency {
+                    name: crate_dependency.name.to_owned(),
+                    version: crate_dependency.version.to_owned(),
+                });
         }
     }
 
@@ -62,6 +44,44 @@ pub async fn get_crate(
         name,
         version: semver::Version::parse(&version).unwrap(),
         dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
+    })
+}
+
+async fn from_dto_to_domain(
+    client: &reqwest::Client,
+    dependency: DependencyApiDto,
+) -> Result<CrateDependency, String> {
+    let version = sanitise_version(&dependency.req);
+
+    if let Some(version) = version {
+        return Ok(CrateDependency {
+            name: dependency.crate_id.to_owned(),
+            version: Version::parse(&version).unwrap(),
+        });
+    }
+
+    let all_versions = client::versions(client, dependency.crate_id.to_owned())
+        .await?
+        .versions
+        .unwrap()
+        .iter()
+        .map(|f| semver::Version::parse(&f.num).unwrap())
+        .collect::<Vec<_>>();
+
+    let version_reqs = to_requirements(&dependency.req);
+
+    let mut filtered_versions = all_versions
+        .iter()
+        .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
+        .collect::<Vec<_>>();
+
+    filtered_versions.sort();
+
+    let best_version = filtered_versions.swap_remove(0);
+
+    Ok(CrateDependency {
+        name: dependency.crate_id.to_owned(),
+        version: best_version.to_owned(),
     })
 }
 
