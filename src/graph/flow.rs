@@ -83,7 +83,10 @@ where
                 .collect();
 
             for ((n, v), c) in results {
-                hash.insert((n, v), c.unwrap());
+                let mut c = c.unwrap();
+                c.dependency
+                    .sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+                hash.insert((n, v), c);
             }
         }
     }

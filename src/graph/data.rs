@@ -66,61 +66,10 @@ WHERE (c.name = ? AND c.version = ?)"
         Ok(results)
     }
 
-    pub async fn get_one(
-        pool: &MySqlPool,
-        name: String,
-        version: String,
-    ) -> Result<Option<Crate>, String> {
-        let fn_name = "get_one";
-
-        log::info!("{}: name={} version={}", fn_name, name, version);
-
-        let records = sqlx::query(
-            "SELECT c.name, c.version, c.dependencies, cd.name, cd.version
-FROM crate AS c
-         LEFT JOIN crate_dependency cd on c.id = cd.crate_id
-WHERE c.name = ?
-  AND c.version = ?",
-        )
-        .bind(name)
-        .bind(version)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            log::error!("{}: error {:?}", fn_name, e);
-            format!("{}: error {:?}", fn_name, e)
-        })?;
-
-        let mut crate_deps = Vec::new();
-
-        for record in records {
-            crate_deps.push(CrateDataDto {
-                name: record.get(0),
-                version: record.get(1),
-                dependencies: record.get(2),
-                dependency_name: record.get(3),
-                dependency_version: record.get(4),
-            });
-        }
-
-        let mut crates = Self::transform_to_domain(&crate_deps);
-
-        if crates.get(0).is_none() {
-            Ok(None)
-        } else {
-            Ok(Some(crates.swap_remove(0)))
-        }
-    }
-
     pub async fn save_one(pool: &MySqlPool, c: Crate) -> Result<(), String> {
         let fn_name = "save_one";
 
         log::info!("{}: crate={:?}", fn_name, c);
-
-        /*let transaction = pool.begin().await.map_err(|e| {
-            log::error!("{}: error {:?}", fn_name, e);
-            format!("{}: error {:?}", fn_name, e)
-        })?;*/
 
         sqlx::query(
             "INSERT INTO crate (name, version, dependencies) VALUE (?, ?, ?)
@@ -168,11 +117,6 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
                 format!("{}: error {:?}", fn_name, e)
             })?;
         }
-
-        /*transaction.commit().await.map_err(|e| {
-            log::error!("{}: error {:?}", fn_name, e);
-            format!("{}: error {:?}", fn_name, e)
-        })?;*/
 
         Ok(())
     }
@@ -308,51 +252,6 @@ mod tests {
         }
 
         assert_eq!(actual, expected);
-    }
-
-    #[actix_rt::test]
-    #[ignore]
-    async fn integration_get_one() -> Result<(), String> {
-        let pool = database_pool::new("mysql://root:password@localhost:3306/rust-kata-001").await?;
-
-        let option = CrateDataDto::get_one(&pool, "syn".to_owned(), "1.0.33".to_owned()).await?;
-
-        assert!(option.is_some(), "crate not found");
-
-        let c = option.unwrap();
-
-        assert_eq!(c.name, "syn", "crate has incorrect name");
-        assert_eq!(
-            c.version,
-            Version::new(1, 0, 33),
-            "crate has incorrect version"
-        );
-        assert_eq!(
-            c.dependency.len(),
-            3,
-            "crate has incorrect number of dependencies"
-        );
-
-        assert!(
-            c.dependency
-                .iter()
-                .any(|d| d.name == "proc-macro2" && d.version == Version::new(1, 0, 13)),
-            "dependency missing proc-macro2 v1.0.13"
-        );
-        assert!(
-            c.dependency
-                .iter()
-                .any(|d| d.name == "quote" && d.version == Version::new(1, 0, 0)),
-            "dependency missing quote v1.0.0"
-        );
-        assert!(
-            c.dependency
-                .iter()
-                .any(|d| d.name == "unicode-xid" && d.version == Version::new(0, 2, 0)),
-            "dependency missing unicode-xid v0.2.0"
-        );
-
-        Ok(())
     }
 
     #[actix_rt::test]
