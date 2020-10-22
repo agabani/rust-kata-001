@@ -10,6 +10,60 @@ pub struct CrateDataDto {
 }
 
 impl CrateDataDto {
+    pub async fn get_one_batch(
+        pool: &MySqlPool,
+        name_version: &[(String, String)],
+    ) -> Result<HashMap<(String, String), Option<Crate>>, String> {
+        let fn_name = "get_many";
+
+        let mut sql = "SELECT c.name, c.version, cd.name, cd.version
+FROM crate c
+         LEFT JOIN crate_dependency cd on c.id = cd.crate_id
+WHERE (c.name = ? AND c.version = ?)"
+            .to_string();
+
+        for _ in 1..name_version.len() {
+            sql += "
+   OR (c.name = ? AND c.version = ?)";
+        }
+
+        let mut query = sqlx::query(&sql);
+
+        for (name, version) in name_version {
+            query = query.bind(name).bind(version);
+        }
+
+        let records = query.fetch_all(pool).await.map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;
+
+        let mut crate_deps = Vec::new();
+
+        for record in records {
+            crate_deps.push(CrateDataDto {
+                name: record.get(0),
+                version: record.get(1),
+                dependency_name: record.get(2),
+                dependency_version: record.get(3),
+            });
+        }
+
+        let mut results = HashMap::new();
+
+        for (name, version) in name_version {
+            results.insert((name.to_owned(), version.to_owned()), None);
+        }
+
+        let crates = Self::transform_to_domain(&crate_deps);
+
+        for c in crates {
+            results.insert((c.name.to_owned(), c.version.to_string()), Some(c));
+        }
+
+        Ok(results)
+    }
+
     pub async fn get_one(
         pool: &MySqlPool,
         name: String,
@@ -147,6 +201,8 @@ WHERE c.name = ?
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::factory::database_pool;
+    use semver::Version;
 
     #[test]
     fn transform() {
@@ -205,5 +261,118 @@ mod tests {
         }
 
         assert_eq!(actual, expected);
+    }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn integration_get_one() -> Result<(), String> {
+        let pool = database_pool::new("mysql://root:password@localhost:3306/rust-kata-001").await?;
+
+        let option = CrateDataDto::get_one(&pool, "syn".to_owned(), "1.0.33".to_owned()).await?;
+
+        assert!(option.is_some(), "crate not found");
+
+        let c = option.unwrap();
+
+        assert_eq!(c.name, "syn", "crate has incorrect name");
+        assert_eq!(
+            c.version,
+            Version::new(1, 0, 33),
+            "crate has incorrect version"
+        );
+        assert_eq!(
+            c.dependency.len(),
+            3,
+            "crate has incorrect number of dependencies"
+        );
+
+        assert!(
+            c.dependency
+                .iter()
+                .any(|d| d.name == "proc-macro2" && d.version == Version::new(1, 0, 13)),
+            "dependency missing proc-macro2 v1.0.13"
+        );
+        assert!(
+            c.dependency
+                .iter()
+                .any(|d| d.name == "quote" && d.version == Version::new(1, 0, 0)),
+            "dependency missing quote v1.0.0"
+        );
+        assert!(
+            c.dependency
+                .iter()
+                .any(|d| d.name == "unicode-xid" && d.version == Version::new(0, 2, 0)),
+            "dependency missing unicode-xid v0.2.0"
+        );
+
+        Ok(())
+    }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn integration_get_one_batch() -> Result<(), String> {
+        let pool = database_pool::new("mysql://root:password@localhost:3306/rust-kata-001").await?;
+
+        let crates = CrateDataDto::get_one_batch(
+            &pool,
+            &vec![
+                ("actix-web".to_owned(), "3.1.0".to_owned()),
+                ("rand".to_owned(), "0.7.3".to_owned()),
+                ("syn".to_owned(), "1.0.33".to_owned()),
+            ],
+        )
+        .await?;
+
+        assert_eq!(crates.len(), 3, "expected 3 crates");
+
+        let actix_web = crates
+            .get(&("actix-web".to_owned(), "3.1.0".to_owned()))
+            .clone()
+            .expect("entry was not in the response")
+            .clone()
+            .expect("entry was not in the database");
+        assert_eq!(actix_web.name, "actix-web");
+        assert_eq!(actix_web.version, Version::new(3, 1, 0));
+        assert!(!actix_web.dependency.is_empty());
+
+        let rand = crates
+            .get(&("rand".to_owned(), "0.7.3".to_owned()))
+            .clone()
+            .expect("entry was not in the response")
+            .clone()
+            .expect("entry was not in the database");
+        assert_eq!(rand.name, "rand");
+        assert_eq!(rand.version, Version::new(0, 7, 3));
+        assert!(!rand.dependency.is_empty());
+
+        let syn = crates
+            .get(&("syn".to_owned(), "1.0.33".to_owned()))
+            .clone()
+            .expect("entry was not in the response")
+            .clone()
+            .expect("entry was not in the database");
+        assert_eq!(syn.name, "syn");
+        assert_eq!(syn.version, Version::new(1, 0, 33));
+        assert!(!syn.dependency.is_empty());
+        assert!(
+            syn.dependency
+                .iter()
+                .any(|d| d.name == "proc-macro2" && d.version == Version::new(1, 0, 13)),
+            "dependency missing proc-macro2 v1.0.13"
+        );
+        assert!(
+            syn.dependency
+                .iter()
+                .any(|d| d.name == "quote" && d.version == Version::new(1, 0, 0)),
+            "dependency missing quote v1.0.0"
+        );
+        assert!(
+            syn.dependency
+                .iter()
+                .any(|d| d.name == "unicode-xid" && d.version == Version::new(0, 2, 0)),
+            "dependency missing unicode-xid v0.2.0"
+        );
+
+        Ok(())
     }
 }
