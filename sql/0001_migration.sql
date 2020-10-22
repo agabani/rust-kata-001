@@ -1,9 +1,10 @@
 create table crate
 (
-    id      int auto_increment
+    id           int auto_increment
         primary key,
-    name    varchar(64) charset utf8 not null,
-    version varchar(40) charset utf8 not null,
+    name         varchar(64) charset utf8 not null,
+    version      varchar(40) charset utf8 not null,
+    dependencies int                      not null,
     constraint crate_name_version_uindex
         unique (name, version)
 );

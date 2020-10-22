@@ -5,6 +5,7 @@ use std::collections::HashMap;
 pub struct CrateDataDto {
     pub(crate) name: String,
     pub(crate) version: String,
+    pub(crate) dependencies: i32,
     pub(crate) dependency_name: Option<String>,
     pub(crate) dependency_version: Option<String>,
 }
@@ -16,7 +17,7 @@ impl CrateDataDto {
     ) -> Result<HashMap<(String, String), Option<Crate>>, String> {
         let fn_name = "get_many";
 
-        let mut sql = "SELECT c.name, c.version, cd.name, cd.version
+        let mut sql = "SELECT c.name, c.version, c.dependencies, cd.name, cd.version
 FROM crate c
          LEFT JOIN crate_dependency cd on c.id = cd.crate_id
 WHERE (c.name = ? AND c.version = ?)"
@@ -44,8 +45,9 @@ WHERE (c.name = ? AND c.version = ?)"
             crate_deps.push(CrateDataDto {
                 name: record.get(0),
                 version: record.get(1),
-                dependency_name: record.get(2),
-                dependency_version: record.get(3),
+                dependencies: record.get(2),
+                dependency_name: record.get(3),
+                dependency_version: record.get(4),
             });
         }
 
@@ -74,7 +76,7 @@ WHERE (c.name = ? AND c.version = ?)"
         log::info!("{}: name={} version={}", fn_name, name, version);
 
         let records = sqlx::query(
-            "SELECT c.name, c.version, cd.name, cd.version
+            "SELECT c.name, c.version, c.dependencies, cd.name, cd.version
 FROM crate AS c
          LEFT JOIN crate_dependency cd on c.id = cd.crate_id
 WHERE c.name = ?
@@ -95,8 +97,9 @@ WHERE c.name = ?
             crate_deps.push(CrateDataDto {
                 name: record.get(0),
                 version: record.get(1),
-                dependency_name: record.get(2),
-                dependency_version: record.get(3),
+                dependencies: record.get(2),
+                dependency_name: record.get(3),
+                dependency_version: record.get(4),
             });
         }
 
@@ -114,53 +117,69 @@ WHERE c.name = ?
 
         log::info!("{}: crate={:?}", fn_name, c);
 
-        let transaction = pool.begin().await.map_err(|e| {
+        /*let transaction = pool.begin().await.map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;*/
+
+        sqlx::query(
+            "INSERT INTO crate (name, version, dependencies) VALUE (?, ?, ?)
+ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
+        )
+        .bind(&c.name)
+        .bind(c.version.to_string())
+        .bind(c.dependency.len() as i32)
+        .execute(pool)
+        .await
+        .map_err(|e| {
             log::error!("{}: error {:?}", fn_name, e);
             format!("{}: error {:?}", fn_name, e)
         })?;
 
-        sqlx::query("INSERT INTO crate (name, version) VALUE (?, ?)")
-            .bind(c.name)
-            .bind(c.version.to_string())
+        let row = sqlx::query(
+            "SELECT c.id
+FROM crate c
+WHERE name = ?
+  AND version = ?",
+        )
+        .bind(&c.name)
+        .bind(c.version.to_string())
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("{}: error {:?}", fn_name, e);
+            format!("{}: error {:?}", fn_name, e)
+        })?;
+
+        let id: i32 = row.get(0);
+
+        for d in c.dependency {
+            sqlx::query(
+                "INSERT INTO crate_dependency (crate_id, name, version) VALUE (?, ?, ?)
+ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
+            )
+            .bind(id)
+            .bind(d.name)
+            .bind(d.version.to_string())
             .execute(pool)
             .await
             .map_err(|e| {
                 log::error!("{}: error {:?}", fn_name, e);
                 format!("{}: error {:?}", fn_name, e)
             })?;
-
-        let row = sqlx::query("SELECT LAST_INSERT_ID()")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                log::error!("{}: error {:?}", fn_name, e);
-                format!("{}: error {:?}", fn_name, e)
-            })?;
-
-        let id: u64 = row.get(0);
-
-        for d in c.dependency {
-            sqlx::query("INSERT INTO crate_dependency (crate_id, name, version) VALUE (?, ?, ?)")
-                .bind(id)
-                .bind(d.name)
-                .bind(d.version.to_string())
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    log::error!("{}: error {:?}", fn_name, e);
-                    format!("{}: error {:?}", fn_name, e)
-                })?;
         }
 
-        transaction.commit().await.map_err(|e| {
+        /*transaction.commit().await.map_err(|e| {
             log::error!("{}: error {:?}", fn_name, e);
             format!("{}: error {:?}", fn_name, e)
-        })?;
+        })?;*/
 
         Ok(())
     }
 
     fn transform_to_domain(dtos: &[Self]) -> Vec<Crate> {
+        let fn_name = "transform_to_domain";
+
         let mut result = Vec::new();
 
         // group
@@ -174,6 +193,24 @@ WHERE c.name = ?
 
         // transform
         for ((name, version), group) in groups {
+            // if check sum fails, skips.
+            if let Some(g) = group.first() {
+                if g.dependencies as usize != group.len()
+                    && g.dependency_name.is_some()
+                    && g.dependency_version.is_some()
+                {
+                    log::warn!(
+                        "{}: checksum failed: name={:?} version={:?} expected={:?} actual={:?}",
+                        fn_name,
+                        name,
+                        version,
+                        g.dependencies,
+                        group.len()
+                    );
+                    continue;
+                }
+            }
+
             let mut web_dto = Crate {
                 name: name.to_string(),
                 version: semver::Version::parse(version).unwrap(),
@@ -210,18 +247,28 @@ mod tests {
             CrateDataDto {
                 name: "name 1".to_owned(),
                 version: "1.0.0".to_owned(),
+                dependencies: 2,
                 dependency_name: Some("sub name 1".to_owned()),
                 dependency_version: Some("0.0.1".to_owned()),
             },
             CrateDataDto {
                 name: "name 1".to_owned(),
                 version: "1.0.0".to_owned(),
+                dependencies: 2,
                 dependency_name: Some("sub name 2".to_owned()),
                 dependency_version: Some("0.0.2".to_owned()),
             },
             CrateDataDto {
                 name: "name 2".to_owned(),
                 version: "2.0.0".to_owned(),
+                dependencies: 1,
+                dependency_name: Some("sub name 1".to_owned()),
+                dependency_version: Some("0.0.1".to_owned()),
+            },
+            CrateDataDto {
+                name: "name 3".to_owned(),
+                version: "3.0.0".to_owned(),
+                dependencies: 3,
                 dependency_name: Some("sub name 1".to_owned()),
                 dependency_version: Some("0.0.1".to_owned()),
             },

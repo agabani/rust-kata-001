@@ -44,12 +44,34 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            for (name, version) in missing_name_versions {
-                let c = api_get_one(name.to_owned(), version.to_owned()).await?;
+            let futures = missing_name_versions
+                .iter()
+                .map(|(name, version)| {
+                    let name = name.to_owned();
+                    let version = version.to_owned();
+                    async move {
+                        let c = api_get_one(name, version).await?;
 
-                db_save_one(c.clone()).await?;
+                        db_save_one(c.clone()).await?;
 
-                results.insert((name, version), Some(c));
+                        Ok::<Crate, String>(c)
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let api_crates = futures::future::join_all(futures).await;
+
+            for api_crate_result in api_crates {
+                if let Err(e) = api_crate_result {
+                    return Err(e);
+                }
+
+                let api_crate = api_crate_result.unwrap();
+
+                results.insert(
+                    (api_crate.name.to_owned(), api_crate.version.to_string()),
+                    Some(api_crate.clone()),
+                );
             }
 
             stack = results
