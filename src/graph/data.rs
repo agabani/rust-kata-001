@@ -12,7 +12,7 @@ pub struct CrateDataDto {
 impl CrateDataDto {
     pub async fn get_one_batch(
         pool: &MySqlPool,
-        name_version: &[(String, String)],
+        name_version: Vec<(String, String)>,
     ) -> Result<HashMap<(String, String), Option<Crate>>, String> {
         let fn_name = "get_many";
 
@@ -29,7 +29,7 @@ WHERE (c.name = ? AND c.version = ?)"
 
         let mut query = sqlx::query(&sql);
 
-        for (name, version) in name_version {
+        for (name, version) in &name_version {
             query = query.bind(name).bind(version);
         }
 
@@ -51,7 +51,7 @@ WHERE (c.name = ? AND c.version = ?)"
 
         let mut results = HashMap::new();
 
-        for (name, version) in name_version {
+        for (name, version) in &name_version {
             results.insert((name.to_owned(), version.to_owned()), None);
         }
 
@@ -315,7 +315,7 @@ mod tests {
 
         let crates = CrateDataDto::get_one_batch(
             &pool,
-            &vec![
+            vec![
                 ("actix-web".to_owned(), "3.1.0".to_owned()),
                 ("rand".to_owned(), "0.7.3".to_owned()),
                 ("syn".to_owned(), "1.0.33".to_owned()),

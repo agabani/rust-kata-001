@@ -32,8 +32,8 @@ pub async fn list(
     };
 
     // dependencies
-    let db_get_one = |name: String, version: String| async {
-        data::CrateDataDto::get_one(database_pool.get_ref(), name, version).await
+    let db_get_one_batch = |name_versions: Vec<(String, String)>| async {
+        data::CrateDataDto::get_one_batch(database_pool.get_ref(), name_versions).await
     };
 
     let db_save_one =
@@ -45,7 +45,7 @@ pub async fn list(
 
     // flow
     let result = get_dependency(
-        db_get_one,
+        db_get_one_batch,
         db_save_one,
         api_get_one,
         name.to_owned(),

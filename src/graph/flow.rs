@@ -2,45 +2,66 @@ use super::domain::Crate;
 use std::collections::HashMap;
 use std::future::Future;
 
-pub async fn get_dependency<DGO, DSO, AGO>(
-    db_get_one: impl Fn(String, String) -> DGO + Copy,
+pub async fn get_dependency<DGOB, DSO, AGO>(
+    db_get_one_batch: impl Fn(Vec<(String, String)>) -> DGOB + Copy,
     db_save_one: impl Fn(Crate) -> DSO + Copy,
     api_get_one: impl Fn(String, String) -> AGO + Copy,
     name: String,
     version: String,
 ) -> Result<Vec<Crate>, String>
 where
-    DGO: Future<Output = Result<Option<Crate>, String>>,
+    DGOB: Future<Output = Result<HashMap<(String, String), Option<Crate>>, String>>,
     DSO: Future<Output = Result<(), String>>,
     AGO: Future<Output = Result<Crate, String>>,
 {
+    let fn_name = "get_dependency";
+
     let mut hash: HashMap<(String, String), Crate> = HashMap::new();
     let mut stack: Vec<(String, String)> = Vec::new();
     stack.push((name, version));
 
-    while !stack.is_empty() {
-        if let Some((name, version)) = stack.pop() {
-            if !hash.contains_key(&(name.to_owned(), version.to_owned())) {
-                let mut c = get_one(
-                    db_get_one,
-                    db_save_one,
-                    api_get_one,
-                    name.to_owned(),
-                    version.to_owned().to_string(),
-                )
-                .await?;
+    while !&stack.is_empty() {
+        let name_versions = stack
+            .iter()
+            .filter(|&name_version| !hash.contains_key(name_version))
+            .map(|(name, version)| (name.to_owned(), version.to_owned()))
+            .collect::<Vec<_>>();
 
-                c.dependency
-                    .sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+        stack.clear();
 
-                let mut d = c
-                    .dependency
-                    .iter()
-                    .map(|c| (c.name.to_owned(), c.version.to_string()))
-                    .collect::<Vec<_>>();
+        if !name_versions.is_empty() {
+            let mut results = db_get_one_batch(name_versions).await?;
+            log::info!("{}: database_create={:?}", fn_name, results);
 
-                stack.append(&mut d);
-                hash.insert((c.name.to_owned(), c.version.to_string()), c.to_owned());
+            let missing_name_versions = results
+                .iter()
+                .filter_map(|((n, v), c)| {
+                    if c.is_none() {
+                        Some((n.to_owned(), v.to_owned()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            for (name, version) in missing_name_versions {
+                let c = api_get_one(name.to_owned(), version.to_owned()).await?;
+
+                db_save_one(c.clone()).await?;
+
+                results.insert((name, version), Some(c));
+            }
+
+            stack = results
+                .iter()
+                .map(|(_, c)| c.clone().unwrap())
+                .map(|c| c.dependency)
+                .flatten()
+                .map(|d| (d.name.to_owned(), d.version.to_string()))
+                .collect();
+
+            for ((n, v), c) in results {
+                hash.insert((n, v), c.unwrap());
             }
         }
     }
@@ -50,34 +71,6 @@ where
     x.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
 
     Ok(x)
-}
-
-async fn get_one<DGO, DSO, AGO>(
-    db_get_one: impl Fn(String, String) -> DGO,
-    db_save_one: impl Fn(Crate) -> DSO,
-    api_get_one: impl Fn(String, String) -> AGO,
-    name: String,
-    version: String,
-) -> Result<Crate, String>
-where
-    DGO: Future<Output = Result<Option<Crate>, String>>,
-    DSO: Future<Output = Result<(), String>>,
-    AGO: Future<Output = Result<Crate, String>>,
-{
-    let fn_name = "get_one";
-
-    let database_crate = db_get_one(name.to_owned(), version.to_owned()).await?;
-
-    if let Some(database_crate) = database_crate {
-        log::info!("{}: database_create={:?}", fn_name, database_crate);
-        return Ok(database_crate);
-    }
-
-    let api_crate = api_get_one(name.to_owned(), version.to_owned()).await?;
-
-    db_save_one(api_crate.clone()).await?;
-
-    Ok(api_crate)
 }
 
 // https://stackoverflow.com/questions/31362206/expected-bound-lifetime-parameter-found-concrete-lifetime-e0271/31365625#31365625
