@@ -2,8 +2,8 @@ use serde::Deserialize;
 
 pub(crate) async fn dependencies(
     client: &reqwest::Client,
-    name: String,
-    version: String,
+    name: &str,
+    version: &str,
 ) -> Result<DependenciesApiDto, String> {
     let fn_name = "dependencies";
 
@@ -30,7 +30,7 @@ pub(crate) async fn dependencies(
 
 pub(crate) async fn versions(
     client: &reqwest::Client,
-    name: String,
+    name: &str,
 ) -> Result<VersionsApiDto, String> {
     let fn_name = "versions";
 
@@ -98,7 +98,7 @@ mod tests {
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let result = dependencies(&client, "syn".to_owned(), "0.11.0".to_owned()).await?;
+        let result = dependencies(&client, "syn", "0.11.0").await?;
 
         assert!(result.errors.is_none());
         assert!(result.dependencies.is_some());
@@ -139,7 +139,7 @@ mod tests {
     async fn integration_versions() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let result = versions(&client, "clippy".to_owned()).await?;
+        let result = versions(&client, "clippy").await?;
 
         assert!(result.errors.is_none());
         assert!(result.versions.is_some());

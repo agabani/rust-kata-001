@@ -8,10 +8,10 @@ use std::collections::HashMap;
 
 pub async fn get_crate(
     client: &reqwest::Client,
-    name: String,
-    version: String,
+    name: &str,
+    version: &str,
 ) -> Result<Crate, String> {
-    let dto = client::dependencies(client, name.to_owned(), version.to_owned()).await?;
+    let dto = client::dependencies(client, name, version).await?;
 
     let mut crate_dependencies = HashMap::new();
 
@@ -20,7 +20,7 @@ pub async fn get_crate(
             dependencies
                 .iter()
                 .filter(|&d| d.kind == "normal")
-                .map(|dependency| from_dto_to_domain(client, dependency.clone())),
+                .map(|dependency| from_dto_to_domain(client, dependency)),
         )
         .await
         .iter_mut()
@@ -41,7 +41,7 @@ pub async fn get_crate(
     }
 
     Ok(Crate {
-        name,
+        name: name.to_owned(),
         version: semver::Version::parse(&version).unwrap(),
         dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
     })
@@ -49,7 +49,7 @@ pub async fn get_crate(
 
 async fn from_dto_to_domain(
     client: &reqwest::Client,
-    dependency: DependencyApiDto,
+    dependency: &DependencyApiDto,
 ) -> Result<CrateDependency, String> {
     let version = sanitise_version(&dependency.req);
 
@@ -60,7 +60,7 @@ async fn from_dto_to_domain(
         });
     }
 
-    let all_versions = client::versions(client, dependency.crate_id.to_owned())
+    let all_versions = client::versions(client, &dependency.crate_id)
         .await?
         .versions
         .unwrap()
@@ -94,12 +94,6 @@ fn to_requirements(requirements: &str) -> Vec<semver::VersionReq> {
 }
 
 fn sanitise_version(version: &str) -> Option<String> {
-    // 0        -> 0.*.*
-    // 0.0      -> 0.0.*
-    // 0.0.0    -> 0.0.0
-    // 0.0.0-b  -> 0.0.0-b
-    // >=0.0.9, <0.4 -> none
-
     // check for multi requirements
     if version.split(',').into_iter().count() > 1 {
         return None;
@@ -163,7 +157,7 @@ mod tests {
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let c = get_crate(&client, "time".to_owned(), "0.2.22".to_owned()).await?;
+        let c = get_crate(&client, "time", "0.2.22").await?;
 
         println!("{:?}", c);
 
@@ -209,7 +203,7 @@ mod tests {
     async fn integration_edge_case_multiple_versions() -> Result<(), String> {
         let client = http_client::new()?;
 
-        let c = get_crate(&client, "yaml-rust".to_owned(), "0.3.5".to_owned()).await?;
+        let c = get_crate(&client, "yaml-rust", "0.3.5").await?;
 
         println!("{:?}", c);
 
