@@ -77,7 +77,7 @@ struct Dependency<'a> {
 
 #[async_trait::async_trait]
 impl<'a> ApiGetOne for Dependency<'a> {
-    async fn execute(&self, name: String, version: String) -> Result<Crate, String> {
+    async fn execute(&self, name: String, version: semver::Version) -> Result<Crate, String> {
         let client = api::Client::new(&self.http_client);
         client.get_crate(&name, &version).await
     }

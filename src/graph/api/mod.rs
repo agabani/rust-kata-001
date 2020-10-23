@@ -3,7 +3,7 @@ mod client;
 use super::domain::Crate;
 use crate::graph::api::client::DependencyApiDto;
 use crate::graph::domain::CrateDependency;
-pub use client::CratesIoClient;
+use client::CratesIoClient;
 use semver::Version;
 use std::collections::HashMap;
 
@@ -18,56 +18,87 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub async fn get_crate(&self, name: &str, version: &str) -> Result<Crate, String> {
-        let dto = self.crates_io_client.dependencies(name, version).await?;
+    /// Gets a crate.
+    pub async fn get_crate(&self, name: &str, version: &Version) -> Result<Crate, String> {
+        let fn_name = "get_crate";
+
+        let dto = self
+            .crates_io_client
+            .dependencies(name, &version.to_string())
+            .await?;
+
+        if let Some(e) = dto.errors {
+            log::error!("{}: req parse error {:?}", fn_name, e);
+            return Err(format!("{}: req parse error: {:?}", fn_name, e));
+        }
+
+        let dependencies = dto.dependencies.ok_or_else(|| {
+            log::error!("{}: crates.io contract violation", fn_name);
+            format!("{}: crates.io contract violation", fn_name)
+        })?;
+
+        let results = futures::future::join_all(dependencies.iter().filter_map(|dependency| {
+            if dependency.kind == "normal" {
+                Some(self.convert_or_best_guess(dependency))
+            } else {
+                None
+            }
+        }))
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
 
         let mut crate_dependencies = HashMap::new();
 
-        if let Some(dependencies) = dto.dependencies {
-            let results = futures::future::join_all(
-                dependencies
-                    .iter()
-                    .filter(|&d| d.kind == "normal")
-                    .map(|dependency| self.from_dto_to_domain(dependency)),
-            )
-            .await
-            .iter_mut()
-            .map(|result| result.clone().unwrap())
-            .collect::<Vec<_>>();
-
-            for crate_dependency in results.iter() {
-                crate_dependencies
-                    .entry((
-                        crate_dependency.name.to_owned(),
-                        crate_dependency.version.to_owned(),
-                    ))
-                    .or_insert(CrateDependency {
-                        name: crate_dependency.name.to_owned(),
-                        version: crate_dependency.version.to_owned(),
-                    });
-            }
+        for crate_dependency in results.iter() {
+            crate_dependencies
+                .entry((
+                    &crate_dependency.name,
+                    &crate_dependency.version,
+                ))
+                .or_insert(CrateDependency {
+                    name: crate_dependency.name.to_owned(),
+                    version: crate_dependency.version.to_owned(),
+                });
         }
 
         Ok(Crate {
             name: name.to_owned(),
-            version: semver::Version::parse(&version).unwrap(),
+            version: version.to_owned(),
             dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
         })
     }
 
-    async fn from_dto_to_domain(
+    async fn convert_or_best_guess(
         &self,
         dependency: &DependencyApiDto,
     ) -> Result<CrateDependency, String> {
-        let version = Self::sanitise_version(&dependency.req);
-
-        if let Some(version) = version {
-            return Ok(CrateDependency {
-                name: dependency.crate_id.to_owned(),
-                version: Version::parse(&version).unwrap(),
-            });
+        if let Some(crate_dependency) = Self::convert(dependency)? {
+            Ok(crate_dependency)
+        } else {
+            self.best_guess(dependency).await
         }
+    }
 
+    fn convert(dependency: &DependencyApiDto) -> Result<Option<CrateDependency>, String> {
+        let fn_name = "convert";
+
+        if let Some(version) = Self::sanitise_version(&dependency.req) {
+            let version = Version::parse(&version).map_err(|e| {
+                log::error!("{}: sem ver error {:?}", fn_name, e);
+                format!("{}: sem ver error: {:?}", fn_name, e)
+            })?;
+
+            Ok(Some(CrateDependency {
+                name: dependency.crate_id.to_owned(),
+                version,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn best_guess(&self, dependency: &DependencyApiDto) -> Result<CrateDependency, String> {
         let all_versions = self
             .crates_io_client
             .versions(&dependency.crate_id)
@@ -78,7 +109,7 @@ impl<'a> Client<'a> {
             .map(|f| semver::Version::parse(&f.num).unwrap())
             .collect::<Vec<_>>();
 
-        let version_reqs = self.to_requirements(&dependency.req);
+        let version_reqs = Self::parse_requirements(&dependency.req)?;
 
         let mut filtered_versions = all_versions
             .iter()
@@ -95,12 +126,18 @@ impl<'a> Client<'a> {
         })
     }
 
-    fn to_requirements(&self, requirements: &str) -> Vec<semver::VersionReq> {
+    fn parse_requirements(requirements: &str) -> Result<Vec<semver::VersionReq>, String> {
+        let fn_name = "parse_requirements";
+
         requirements
             .split(',')
             .into_iter()
-            .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
-            .collect::<Vec<_>>()
+            .map(|f| semver::VersionReq::parse(f.trim()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| {
+                log::error!("{}: req parse error {:?}", fn_name, e);
+                format!("{}: req parse error: {:?}", fn_name, e)
+            })
     }
 
     fn sanitise_version(version: &str) -> Option<String> {
@@ -172,7 +209,9 @@ mod tests {
         let client = http_client::new()?;
         let client = Client::new(&client);
 
-        let c = client.get_crate("time", "0.2.22").await?;
+        let c = client
+            .get_crate("time", &semver::Version::parse("0.2.22").unwrap())
+            .await?;
 
         println!("{:?}", c);
 
@@ -219,7 +258,9 @@ mod tests {
         let client = http_client::new()?;
         let client = Client::new(&client);
 
-        let c = client.get_crate("yaml-rust", "0.3.5").await?;
+        let c = client
+            .get_crate("yaml-rust", &semver::Version::parse("0.3.5").unwrap())
+            .await?;
 
         println!("{:?}", c);
 

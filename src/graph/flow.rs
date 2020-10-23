@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 #[async_trait::async_trait]
 pub trait ApiGetOne {
-    async fn execute(&self, name: String, version: String) -> Result<Crate, String>;
+    async fn execute(&self, name: String, version: semver::Version) -> Result<Crate, String>;
 }
 
 #[async_trait::async_trait]
@@ -62,7 +62,9 @@ pub async fn get_dependency(
                     let name = name.to_owned();
                     let version = version.to_owned();
                     async move {
-                        let c = api_get_one.execute(name, version).await?;
+                        let c = api_get_one
+                            .execute(name, semver::Version::parse(&version).unwrap())
+                            .await?;
 
                         db_save_one.execute(c.clone()).await?;
 
