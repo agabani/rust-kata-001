@@ -1,19 +1,31 @@
 use super::domain::Crate;
 use std::collections::HashMap;
-use std::future::Future;
 
-pub async fn get_dependency<DGOB, DSO, AGO>(
-    db_get_one_batch: impl Fn(Vec<(String, String)>) -> DGOB + Copy,
-    db_save_one: impl Fn(Crate) -> DSO + Copy,
-    api_get_one: impl Fn(String, String) -> AGO + Copy,
+#[async_trait::async_trait]
+pub trait ApiGetOne {
+    async fn execute(&self, name: String, version: String) -> Result<Crate, String>;
+}
+
+#[async_trait::async_trait]
+pub trait DatabaseGetOneBatch {
+    async fn execute(
+        &self,
+        crates: Vec<(String, String)>,
+    ) -> Result<HashMap<(String, String), Option<Crate>>, String>;
+}
+
+#[async_trait::async_trait]
+pub trait DatabaseSaveOne {
+    async fn execute(&self, c: Crate) -> Result<(), String>;
+}
+
+pub async fn get_dependency(
+    db_get_one_batch: &impl DatabaseGetOneBatch,
+    db_save_one: &impl DatabaseSaveOne,
+    api_get_one: &impl ApiGetOne,
     name: String,
     version: String,
-) -> Result<Vec<Crate>, String>
-where
-    DGOB: Future<Output = Result<HashMap<(String, String), Option<Crate>>, String>>,
-    DSO: Future<Output = Result<(), String>>,
-    AGO: Future<Output = Result<Crate, String>>,
-{
+) -> Result<Vec<Crate>, String> {
     let fn_name = "get_dependency";
 
     let mut hash: HashMap<(String, String), Crate> = HashMap::new();
@@ -30,7 +42,7 @@ where
         stack.clear();
 
         if !name_versions.is_empty() {
-            let mut results = db_get_one_batch(name_versions).await?;
+            let mut results = db_get_one_batch.execute(name_versions).await?;
             log::info!("{}: database_create={:?}", fn_name, results);
 
             let missing_name_versions = results
@@ -50,9 +62,9 @@ where
                     let name = name.to_owned();
                     let version = version.to_owned();
                     async move {
-                        let c = api_get_one(name, version).await?;
+                        let c = api_get_one.execute(name, version).await?;
 
-                        db_save_one(c.clone()).await?;
+                        db_save_one.execute(c.clone()).await?;
 
                         Ok::<Crate, String>(c)
                     }
