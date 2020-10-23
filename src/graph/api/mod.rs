@@ -28,8 +28,8 @@ impl<'a> Client<'a> {
             .await?;
 
         if let Some(e) = dto.errors {
-            log::error!("{}: req parse error {:?}", fn_name, e);
-            return Err(format!("{}: req parse error: {:?}", fn_name, e));
+            log::error!("{}: crates.io client error {:?}", fn_name, e);
+            return Err(format!("{}: crates.io client error: {:?}", fn_name, e));
         }
 
         let dependencies = dto.dependencies.ok_or_else(|| {
@@ -37,25 +37,23 @@ impl<'a> Client<'a> {
             format!("{}: crates.io contract violation", fn_name)
         })?;
 
-        let results = futures::future::join_all(dependencies.iter().filter_map(|dependency| {
-            if dependency.kind == "normal" {
-                Some(self.convert_or_best_guess(dependency))
-            } else {
-                None
-            }
-        }))
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+        let crate_dependencies =
+            futures::future::join_all(dependencies.iter().filter_map(|dependency| {
+                if dependency.kind == "normal" {
+                    Some(self.convert_or_best_guess(dependency))
+                } else {
+                    None
+                }
+            }))
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let mut crate_dependencies = HashMap::new();
+        let mut results = HashMap::new();
 
-        for crate_dependency in results.iter() {
-            crate_dependencies
-                .entry((
-                    &crate_dependency.name,
-                    &crate_dependency.version,
-                ))
+        for crate_dependency in crate_dependencies.iter() {
+            results
+                .entry((&crate_dependency.name, &crate_dependency.version))
                 .or_insert(CrateDependency {
                     name: crate_dependency.name.to_owned(),
                     version: crate_dependency.version.to_owned(),
@@ -65,7 +63,7 @@ impl<'a> Client<'a> {
         Ok(Crate {
             name: name.to_owned(),
             version: version.to_owned(),
-            dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
+            dependency: results.into_iter().map(|e| e.1).collect(),
         })
     }
 
@@ -99,26 +97,38 @@ impl<'a> Client<'a> {
     }
 
     async fn best_guess(&self, dependency: &DependencyApiDto) -> Result<CrateDependency, String> {
-        let all_versions = self
-            .crates_io_client
-            .versions(&dependency.crate_id)
-            .await?
-            .versions
-            .unwrap()
-            .iter()
-            .map(|f| semver::Version::parse(&f.num).unwrap())
-            .collect::<Vec<_>>();
+        let fn_name = "best_guess";
 
         let version_reqs = Self::parse_requirements(&dependency.req)?;
 
-        let mut filtered_versions = all_versions
+        let dto = self.crates_io_client.versions(&dependency.crate_id).await?;
+
+        if let Some(e) = dto.errors {
+            log::error!("{}: crates.io client error {:?}", fn_name, e);
+            return Err(format!("{}: crates.io client error: {:?}", fn_name, e));
+        }
+
+        let versions = dto
+            .versions
+            .ok_or_else(|| {
+                log::error!("{}: crates.io contract violation", fn_name);
+                format!("{}: crates.io contract violation", fn_name)
+            })?
+            .iter()
+            .map(|version| Version::parse(&version.num))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| {
+                log::error!("{}: sem ver error {:?}", fn_name, e);
+                format!("{}: sem ver error: {:?}", fn_name, e)
+            })?;
+
+        let mut matching_versions = versions
             .iter()
             .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
             .collect::<Vec<_>>();
 
-        filtered_versions.sort();
-
-        let best_version = filtered_versions.swap_remove(0);
+        matching_versions.sort();
+        let best_version = matching_versions.swap_remove(0);
 
         Ok(CrateDependency {
             name: dependency.crate_id.to_owned(),
