@@ -16,42 +16,38 @@ impl<'a> CratesIoClient<'a> {
         name: &str,
         version: &str,
     ) -> Result<DependenciesApiDto, String> {
-        let fn_name = "dependencies";
-
         let url = format!(
             "https://crates.io/api/v1/crates/{}/{}/dependencies",
             name, version
         );
-        log::info!("{}: url={}", fn_name, url);
 
-        let response = self.http_client.get(&url).send().await.map_err(|e| {
-            log::error!("{}: send request error {:?}", fn_name, e);
-            format!("{}: send request error: {:?}", fn_name, e)
-        })?;
-        log::info!("{}: status={}", fn_name, response.status());
-
-        let dto = response.json::<DependenciesApiDto>().await.map_err(|e| {
-            log::error!("{}: json payload error {:?}", fn_name, e);
-            format!("{}: json payload error: {:?}", fn_name, e)
-        })?;
-        log::info!("{}: dto={:?}", fn_name, dto);
+        let dto = self.get("dependencies", &url).await?;
 
         Ok(dto)
     }
 
     pub(crate) async fn versions(&self, name: &str) -> Result<VersionsApiDto, String> {
-        let fn_name = "versions";
-
         let url = format!("https://crates.io/api/v1/crates/{}", name);
+
+        let dto = self.get("versions", &url).await?;
+
+        Ok(dto)
+    }
+
+    async fn get<T: std::fmt::Debug + serde::de::DeserializeOwned>(
+        &self,
+        fn_name: &str,
+        url: &str,
+    ) -> Result<T, String> {
         log::info!("{}: url={}", fn_name, url);
 
-        let response = self.http_client.get(&url).send().await.map_err(|e| {
+        let response = self.http_client.get(url).send().await.map_err(|e| {
             log::error!("{}: send request error {:?}", fn_name, e);
             format!("{}: send request error: {:?}", fn_name, e)
         })?;
         log::info!("{}: status={}", fn_name, response.status());
 
-        let dto = response.json::<VersionsApiDto>().await.map_err(|e| {
+        let dto = response.json::<T>().await.map_err(|e| {
             log::error!("{}: json payload error {:?}", fn_name, e);
             format!("{}: json payload error: {:?}", fn_name, e)
         })?;
