@@ -59,7 +59,7 @@ impl<'a> Client<'a> {
         &self,
         dependency: &DependencyApiDto,
     ) -> Result<CrateDependency, String> {
-        let version = sanitise_version(&dependency.req);
+        let version = Self::sanitise_version(&dependency.req);
 
         if let Some(version) = version {
             return Ok(CrateDependency {
@@ -102,57 +102,60 @@ impl<'a> Client<'a> {
             .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
             .collect::<Vec<_>>()
     }
-}
 
-fn sanitise_version(version: &str) -> Option<String> {
-    // check for multi requirements
-    if version.split(',').into_iter().count() > 1 {
-        return None;
+    fn sanitise_version(version: &str) -> Option<String> {
+        // check for multi requirements
+        if version.split(',').into_iter().count() > 1 {
+            return None;
+        }
+
+        // check for numerical major.minor.build-
+        let components = version
+            .split(|p| p == '.' || p == '-')
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        if components.len() < 3
+            || components
+                .iter()
+                .take(3)
+                .any(|&s| s.chars().any(|c| !char::is_numeric(c)))
+        {
+            return None;
+        }
+
+        Some(
+            version
+                .trim_start_matches(|p| !char::is_numeric(p))
+                .to_owned(),
+        )
     }
-
-    // check for numerical major.minor.build-
-    let components = version
-        .split(|p| p == '.' || p == '-')
-        .into_iter()
-        .collect::<Vec<_>>();
-
-    if components.len() < 3
-        || components
-            .iter()
-            .take(3)
-            .any(|&s| s.chars().any(|c| !char::is_numeric(c)))
-    {
-        return None;
-    }
-
-    Some(
-        version
-            .trim_start_matches(|p| !char::is_numeric(p))
-            .to_owned(),
-    )
 }
 
 #[cfg(test)]
 mod tests {
     use crate::factory::http_client;
-    use crate::graph::api::sanitise_version;
+    use crate::graph::api::Client;
 
     #[test]
     fn unit_sanitise_version() {
         // numbers
-        assert_eq!(sanitise_version("1"), None);
-        assert_eq!(sanitise_version("2.3"), None);
-        assert_eq!(sanitise_version("4.5.6"), Some("4.5.6".to_owned()));
-        assert_eq!(sanitise_version("7.8.9-b"), Some("7.8.9-b".to_owned()));
+        assert_eq!(Client::sanitise_version("1"), None);
+        assert_eq!(Client::sanitise_version("2.3"), None);
+        assert_eq!(Client::sanitise_version("4.5.6"), Some("4.5.6".to_owned()));
+        assert_eq!(
+            Client::sanitise_version("7.8.9-b"),
+            Some("7.8.9-b".to_owned())
+        );
 
         // wild cards
-        assert_eq!(sanitise_version("*"), None);
-        assert_eq!(sanitise_version("1.*"), None);
-        assert_eq!(sanitise_version("1.*.*"), None);
-        assert_eq!(sanitise_version("1.2.*"), None);
+        assert_eq!(Client::sanitise_version("*"), None);
+        assert_eq!(Client::sanitise_version("1.*"), None);
+        assert_eq!(Client::sanitise_version("1.*.*"), None);
+        assert_eq!(Client::sanitise_version("1.2.*"), None);
 
         // requirements
-        assert_eq!(sanitise_version(">=0.0.9, <0.4"), None);
+        assert_eq!(Client::sanitise_version(">=0.0.9, <0.4"), None);
     }
 
     #[test]
@@ -167,8 +170,9 @@ mod tests {
     #[ignore]
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client::new()?;
+        let client = Client::new(&client);
 
-        let c = get_crate(&client, "time", "0.2.22").await?;
+        let c = client.get_crate("time", "0.2.22").await?;
 
         println!("{:?}", c);
 
@@ -213,8 +217,9 @@ mod tests {
     #[ignore]
     async fn integration_edge_case_multiple_versions() -> Result<(), String> {
         let client = http_client::new()?;
+        let client = Client::new(&client);
 
-        let c = get_crate(&client, "yaml-rust", "0.3.5").await?;
+        let c = client.get_crate("yaml-rust", "0.3.5").await?;
 
         println!("{:?}", c);
 

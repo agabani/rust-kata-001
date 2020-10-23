@@ -11,6 +11,7 @@ impl<'a> CratesIoClient<'a> {
         }
     }
 
+    /// Gets the dependencies of a crate.
     pub(crate) async fn dependencies(
         &self,
         name: &str,
@@ -26,6 +27,7 @@ impl<'a> CratesIoClient<'a> {
         Ok(dto)
     }
 
+    /// Gets the versions of a crate.
     pub(crate) async fn versions(&self, name: &str) -> Result<VersionsApiDto, String> {
         let url = format!("https://crates.io/api/v1/crates/{}", name);
 
