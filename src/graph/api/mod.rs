@@ -3,94 +3,105 @@ mod client;
 use super::domain::Crate;
 use crate::graph::api::client::DependencyApiDto;
 use crate::graph::domain::CrateDependency;
+pub use client::CratesIoClient;
 use semver::Version;
 use std::collections::HashMap;
 
-pub async fn get_crate(
-    client: &reqwest::Client,
-    name: &str,
-    version: &str,
-) -> Result<Crate, String> {
-    let dto = client::dependencies(client, name, version).await?;
+pub struct Client<'a> {
+    crates_io_client: CratesIoClient<'a>,
+}
 
-    let mut crate_dependencies = HashMap::new();
-
-    if let Some(dependencies) = dto.dependencies {
-        let results = futures::future::join_all(
-            dependencies
-                .iter()
-                .filter(|&d| d.kind == "normal")
-                .map(|dependency| from_dto_to_domain(client, dependency)),
-        )
-        .await
-        .iter_mut()
-        .map(|result| result.clone().unwrap())
-        .collect::<Vec<_>>();
-
-        for crate_dependency in results.iter() {
-            crate_dependencies
-                .entry((
-                    crate_dependency.name.to_owned(),
-                    crate_dependency.version.to_owned(),
-                ))
-                .or_insert(CrateDependency {
-                    name: crate_dependency.name.to_owned(),
-                    version: crate_dependency.version.to_owned(),
-                });
+impl<'a> Client<'a> {
+    pub fn new(client: &'a reqwest::Client) -> Client<'a> {
+        Client {
+            crates_io_client: CratesIoClient::new(client),
         }
     }
 
-    Ok(Crate {
-        name: name.to_owned(),
-        version: semver::Version::parse(&version).unwrap(),
-        dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
-    })
-}
+    pub async fn get_crate(&self, name: &str, version: &str) -> Result<Crate, String> {
+        let dto = self.crates_io_client.dependencies(name, version).await?;
 
-async fn from_dto_to_domain(
-    client: &reqwest::Client,
-    dependency: &DependencyApiDto,
-) -> Result<CrateDependency, String> {
-    let version = sanitise_version(&dependency.req);
+        let mut crate_dependencies = HashMap::new();
 
-    if let Some(version) = version {
-        return Ok(CrateDependency {
-            name: dependency.crate_id.to_owned(),
-            version: Version::parse(&version).unwrap(),
-        });
+        if let Some(dependencies) = dto.dependencies {
+            let results = futures::future::join_all(
+                dependencies
+                    .iter()
+                    .filter(|&d| d.kind == "normal")
+                    .map(|dependency| self.from_dto_to_domain(dependency)),
+            )
+            .await
+            .iter_mut()
+            .map(|result| result.clone().unwrap())
+            .collect::<Vec<_>>();
+
+            for crate_dependency in results.iter() {
+                crate_dependencies
+                    .entry((
+                        crate_dependency.name.to_owned(),
+                        crate_dependency.version.to_owned(),
+                    ))
+                    .or_insert(CrateDependency {
+                        name: crate_dependency.name.to_owned(),
+                        version: crate_dependency.version.to_owned(),
+                    });
+            }
+        }
+
+        Ok(Crate {
+            name: name.to_owned(),
+            version: semver::Version::parse(&version).unwrap(),
+            dependency: crate_dependencies.into_iter().map(|e| e.1).collect(),
+        })
     }
 
-    let all_versions = client::versions(client, &dependency.crate_id)
-        .await?
-        .versions
-        .unwrap()
-        .iter()
-        .map(|f| semver::Version::parse(&f.num).unwrap())
-        .collect::<Vec<_>>();
+    async fn from_dto_to_domain(
+        &self,
+        dependency: &DependencyApiDto,
+    ) -> Result<CrateDependency, String> {
+        let version = sanitise_version(&dependency.req);
 
-    let version_reqs = to_requirements(&dependency.req);
+        if let Some(version) = version {
+            return Ok(CrateDependency {
+                name: dependency.crate_id.to_owned(),
+                version: Version::parse(&version).unwrap(),
+            });
+        }
 
-    let mut filtered_versions = all_versions
-        .iter()
-        .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
-        .collect::<Vec<_>>();
+        let all_versions = self
+            .crates_io_client
+            .versions(&dependency.crate_id)
+            .await?
+            .versions
+            .unwrap()
+            .iter()
+            .map(|f| semver::Version::parse(&f.num).unwrap())
+            .collect::<Vec<_>>();
 
-    filtered_versions.sort();
+        let version_reqs = self.to_requirements(&dependency.req);
 
-    let best_version = filtered_versions.swap_remove(0);
+        let mut filtered_versions = all_versions
+            .iter()
+            .filter(|&v| version_reqs.iter().all(|vr| vr.matches(v)))
+            .collect::<Vec<_>>();
 
-    Ok(CrateDependency {
-        name: dependency.crate_id.to_owned(),
-        version: best_version.to_owned(),
-    })
-}
+        filtered_versions.sort();
 
-fn to_requirements(requirements: &str) -> Vec<semver::VersionReq> {
-    requirements
-        .split(',')
-        .into_iter()
-        .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
-        .collect::<Vec<_>>()
+        let best_version = filtered_versions.swap_remove(0);
+
+        Ok(CrateDependency {
+            name: dependency.crate_id.to_owned(),
+            version: best_version.to_owned(),
+        })
+    }
+
+    fn to_requirements(&self, requirements: &str) -> Vec<semver::VersionReq> {
+        requirements
+            .split(',')
+            .into_iter()
+            .map(|f| semver::VersionReq::parse(f.trim()).unwrap())
+            .collect::<Vec<_>>()
+    }
 }
 
 fn sanitise_version(version: &str) -> Option<String> {
@@ -124,7 +135,7 @@ fn sanitise_version(version: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use crate::factory::http_client;
-    use crate::graph::api::{get_crate, sanitise_version};
+    use crate::graph::api::sanitise_version;
 
     #[test]
     fn unit_sanitise_version() {
