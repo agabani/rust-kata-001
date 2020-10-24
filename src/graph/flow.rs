@@ -3,20 +3,20 @@ use std::collections::HashMap;
 
 #[async_trait::async_trait]
 pub trait ApiGetOne {
-    async fn execute(&self, name: String, version: semver::Version) -> Result<Crate, String>;
+    async fn execute(&self, name: String, version: &semver::Version) -> Result<Crate, String>;
 }
 
 #[async_trait::async_trait]
 pub trait DatabaseGetOneBatch {
     async fn execute(
         &self,
-        crates: Vec<(String, String)>,
-    ) -> Result<HashMap<(String, String), Option<Crate>>, String>;
+        crates: &[(String, semver::Version)],
+    ) -> Result<HashMap<(String, semver::Version), Option<Crate>>, String>;
 }
 
 #[async_trait::async_trait]
 pub trait DatabaseSaveOne {
-    async fn execute(&self, c: Crate) -> Result<(), String>;
+    async fn execute(&self, c: &Crate) -> Result<(), String>;
 }
 
 pub async fn get_dependency(
@@ -24,12 +24,12 @@ pub async fn get_dependency(
     db_save_one: &impl DatabaseSaveOne,
     api_get_one: &impl ApiGetOne,
     name: String,
-    version: String,
+    version: semver::Version,
 ) -> Result<Vec<Crate>, String> {
     let fn_name = "get_dependency";
 
-    let mut hash: HashMap<(String, String), Crate> = HashMap::new();
-    let mut stack: Vec<(String, String)> = Vec::new();
+    let mut hash: HashMap<(String, semver::Version), Crate> = HashMap::new();
+    let mut stack: Vec<(String, semver::Version)> = Vec::new();
     stack.push((name, version));
 
     while !&stack.is_empty() {
@@ -42,7 +42,7 @@ pub async fn get_dependency(
         stack.clear();
 
         if !name_versions.is_empty() {
-            let mut results = db_get_one_batch.execute(name_versions).await?;
+            let mut results = db_get_one_batch.execute(&name_versions).await?;
             log::info!("{}: database_create={:?}", fn_name, results);
 
             let missing_name_versions = results
@@ -62,11 +62,9 @@ pub async fn get_dependency(
                     let name = name.to_owned();
                     let version = version.to_owned();
                     async move {
-                        let c = api_get_one
-                            .execute(name, semver::Version::parse(&version).unwrap())
-                            .await?;
+                        let c = api_get_one.execute(name, &version).await?;
 
-                        db_save_one.execute(c.clone()).await?;
+                        db_save_one.execute(&c).await?;
 
                         Ok::<Crate, String>(c)
                     }
@@ -83,7 +81,7 @@ pub async fn get_dependency(
                 let api_crate = api_crate_result.unwrap();
 
                 results.insert(
-                    (api_crate.name.to_owned(), api_crate.version.to_string()),
+                    (api_crate.name.to_owned(), api_crate.version.to_owned()),
                     Some(api_crate.clone()),
                 );
             }
@@ -93,7 +91,7 @@ pub async fn get_dependency(
                 .map(|(_, c)| c.clone().unwrap())
                 .map(|c| c.dependency)
                 .flatten()
-                .map(|d| (d.name.to_owned(), d.version.to_string()))
+                .map(|d| (d.name, d.version))
                 .collect();
 
             for ((n, v), c) in results {

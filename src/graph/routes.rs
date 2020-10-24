@@ -24,7 +24,16 @@ pub async fn list(
     };
 
     let version = match &query_parameters.version {
-        Some(version) => version,
+        // Some(version) => version,
+        Some(version) => match semver::Version::parse(version) {
+            Ok(version) => version,
+            Err(e) => {
+                return HttpResponse::BadRequest().json(models::ErrorWebDto {
+                    status_code: 400,
+                    error_message: format!("version invalid: {:?}", e),
+                })
+            }
+        },
         None => {
             return HttpResponse::BadRequest().json(models::ErrorWebDto {
                 status_code: 400,
@@ -77,8 +86,8 @@ struct Dependency<'a> {
 
 #[async_trait::async_trait]
 impl<'a> ApiGetOne for Dependency<'a> {
-    async fn execute(&self, name: String, version: semver::Version) -> Result<Crate, String> {
-        let client = api::Client::new(&self.http_client);
+    async fn execute(&self, name: String, version: &semver::Version) -> Result<Crate, String> {
+        let client = api::Client::new(self.http_client);
         client.get_crate(&name, &version).await
     }
 }
@@ -87,15 +96,17 @@ impl<'a> ApiGetOne for Dependency<'a> {
 impl<'a> DatabaseGetOneBatch for Dependency<'a> {
     async fn execute(
         &self,
-        crates: Vec<(String, String)>,
-    ) -> Result<HashMap<(String, String), Option<Crate>, RandomState>, String> {
-        data::CrateDataDto::get_one_batch(self.database_pool, crates).await
+        crates: &[(String, semver::Version)],
+    ) -> Result<HashMap<(String, semver::Version), Option<Crate>, RandomState>, String> {
+        let database = data::Database::new(self.database_pool);
+        database.get_one_batch(crates).await
     }
 }
 
 #[async_trait::async_trait]
 impl<'a> DatabaseSaveOne for Dependency<'a> {
-    async fn execute(&self, c: Crate) -> Result<(), String> {
-        data::CrateDataDto::save_one(self.database_pool, c).await
+    async fn execute(&self, c: &Crate) -> Result<(), String> {
+        let database = data::Database::new(self.database_pool);
+        database.save_one(c).await
     }
 }

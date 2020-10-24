@@ -2,19 +2,27 @@ use super::domain::{Crate, CrateDependency};
 use sqlx::{MySqlPool, Row};
 use std::collections::HashMap;
 
-pub struct CrateDataDto {
-    pub(crate) name: String,
-    pub(crate) version: String,
-    pub(crate) dependencies: i32,
-    pub(crate) dependency_name: Option<String>,
-    pub(crate) dependency_version: Option<String>,
+struct CrateDataDto {
+    name: String,
+    version: String,
+    dependencies: i32,
+    dependency_name: Option<String>,
+    dependency_version: Option<String>,
 }
 
-impl CrateDataDto {
+pub struct Database<'a> {
+    pool: &'a MySqlPool,
+}
+
+impl<'a> Database<'a> {
+    pub fn new(pool: &'a MySqlPool) -> Self {
+        Database { pool }
+    }
+
     pub async fn get_one_batch(
-        pool: &MySqlPool,
-        name_version: Vec<(String, String)>,
-    ) -> Result<HashMap<(String, String), Option<Crate>>, String> {
+        &self,
+        name_version: &[(String, semver::Version)],
+    ) -> Result<HashMap<(String, semver::Version), Option<Crate>>, String> {
         let fn_name = "get_many";
 
         let mut sql = "SELECT c.name, c.version, c.dependencies, cd.name, cd.version
@@ -30,11 +38,11 @@ WHERE (c.name = ? AND c.version = ?)"
 
         let mut query = sqlx::query(&sql);
 
-        for (name, version) in &name_version {
-            query = query.bind(name).bind(version);
+        for (name, version) in name_version {
+            query = query.bind(name).bind(version.to_string());
         }
 
-        let records = query.fetch_all(pool).await.map_err(|e| {
+        let records = query.fetch_all(self.pool).await.map_err(|e| {
             log::error!("{}: error {:?}", fn_name, e);
             format!("{}: error {:?}", fn_name, e)
         })?;
@@ -53,20 +61,20 @@ WHERE (c.name = ? AND c.version = ?)"
 
         let mut results = HashMap::new();
 
-        for (name, version) in &name_version {
+        for (name, version) in name_version {
             results.insert((name.to_owned(), version.to_owned()), None);
         }
 
         let crates = Self::transform_to_domain(&crate_deps);
 
         for c in crates {
-            results.insert((c.name.to_owned(), c.version.to_string()), Some(c));
+            results.insert((c.name.to_owned(), c.version.to_owned()), Some(c));
         }
 
         Ok(results)
     }
 
-    pub async fn save_one(pool: &MySqlPool, c: Crate) -> Result<(), String> {
+    pub async fn save_one(&self, c: &Crate) -> Result<(), String> {
         let fn_name = "save_one";
 
         log::info!("{}: crate={:?}", fn_name, c);
@@ -78,7 +86,7 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
         .bind(&c.name)
         .bind(c.version.to_string())
         .bind(c.dependency.len() as i32)
-        .execute(pool)
+        .execute(self.pool)
         .await
         .map_err(|e| {
             log::error!("{}: error {:?}", fn_name, e);
@@ -93,7 +101,7 @@ WHERE name = ?
         )
         .bind(&c.name)
         .bind(c.version.to_string())
-        .fetch_one(pool)
+        .fetch_one(self.pool)
         .await
         .map_err(|e| {
             log::error!("{}: error {:?}", fn_name, e);
@@ -102,15 +110,15 @@ WHERE name = ?
 
         let id: i32 = row.get(0);
 
-        for d in c.dependency {
+        for d in &c.dependency {
             sqlx::query(
                 "INSERT INTO crate_dependency (crate_id, name, version) VALUE (?, ?, ?)
 ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
             )
             .bind(id)
-            .bind(d.name)
+            .bind(&d.name)
             .bind(d.version.to_string())
-            .execute(pool)
+            .execute(self.pool)
             .await
             .map_err(|e| {
                 log::error!("{}: error {:?}", fn_name, e);
@@ -121,10 +129,8 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
         Ok(())
     }
 
-    fn transform_to_domain(dtos: &[Self]) -> Vec<Crate> {
+    fn transform_to_domain(dtos: &[CrateDataDto]) -> Vec<Crate> {
         let fn_name = "transform_to_domain";
-
-        let mut result = Vec::new();
 
         // group
         let mut groups = HashMap::new();
@@ -135,10 +141,12 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
                 .push(dto);
         }
 
+        let mut result = Vec::new();
+
         // transform
         for ((name, version), group) in groups {
             // if check sum fails, skips.
-            if let Some(g) = group.first() {
+            if let Some(&g) = group.first() {
                 if g.dependencies as usize != group.len()
                     && g.dependency_name.is_some()
                     && g.dependency_version.is_some()
@@ -243,7 +251,7 @@ mod tests {
             },
         ];
 
-        let mut actual = CrateDataDto::transform_to_domain(&input);
+        let mut actual = Database::transform_to_domain(&input);
 
         actual.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
         for d in actual.iter_mut() {
@@ -258,21 +266,20 @@ mod tests {
     #[ignore]
     async fn integration_get_one_batch() -> Result<(), String> {
         let pool = database_pool::new("mysql://root:password@localhost:3306/rust-kata-001").await?;
+        let database = Database::new(&pool);
 
-        let crates = CrateDataDto::get_one_batch(
-            &pool,
-            vec![
-                ("actix-web".to_owned(), "3.1.0".to_owned()),
-                ("rand".to_owned(), "0.7.3".to_owned()),
-                ("syn".to_owned(), "1.0.33".to_owned()),
-            ],
-        )
-        .await?;
+        let crates = database
+            .get_one_batch(&vec![
+                ("actix-web".to_owned(), semver::Version::new(3, 1, 0)),
+                ("rand".to_owned(), semver::Version::new(0, 7, 3)),
+                ("syn".to_owned(), semver::Version::new(1, 0, 33)),
+            ])
+            .await?;
 
         assert_eq!(crates.len(), 3, "expected 3 crates");
 
         let actix_web = crates
-            .get(&("actix-web".to_owned(), "3.1.0".to_owned()))
+            .get(&("actix-web".to_owned(), semver::Version::new(3, 1, 0)))
             .clone()
             .expect("entry was not in the response")
             .clone()
@@ -282,7 +289,7 @@ mod tests {
         assert!(!actix_web.dependency.is_empty());
 
         let rand = crates
-            .get(&("rand".to_owned(), "0.7.3".to_owned()))
+            .get(&("rand".to_owned(), semver::Version::new(0, 7, 3)))
             .clone()
             .expect("entry was not in the response")
             .clone()
@@ -292,7 +299,7 @@ mod tests {
         assert!(!rand.dependency.is_empty());
 
         let syn = crates
-            .get(&("syn".to_owned(), "1.0.33".to_owned()))
+            .get(&("syn".to_owned(), semver::Version::new(1, 0, 33)))
             .clone()
             .expect("entry was not in the response")
             .clone()
