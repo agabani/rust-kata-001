@@ -145,3 +145,7 @@ Multi req
     ]
 }
 ```
+
+## RFC
+
+* [Health Check Response RFC Draft for HTTP APIs](https://github.com/inadarei/rfc-healthcheck)
