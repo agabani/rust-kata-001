@@ -97,7 +97,7 @@ impl HealthResponse {
             for check in checks {
                 hashmap
                     .entry(check.component_name.to_owned())
-                    .or_insert(Vec::new())
+                    .or_insert_with(Vec::new)
                     .push(HealthCheckResponse {
                         component_id: check.component_id.to_owned(),
                         component_type: check.component_type.to_owned(),

@@ -1,7 +1,7 @@
 mod models;
 mod routes;
 
-use actix_web::{web, web::ServiceConfig};
+use actix_web::web::ServiceConfig;
 use routes::get;
 
 pub fn configure(service_config: &mut ServiceConfig) {

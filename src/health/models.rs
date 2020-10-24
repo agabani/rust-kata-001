@@ -36,7 +36,7 @@ pub(crate) enum HealthStatus {
 }
 
 impl Health {
-    pub(crate) fn from(checks: &Vec<HealthCheck>) -> Self {
+    pub(crate) fn from(checks: &[HealthCheck]) -> Self {
         let statuses = &checks
             .iter()
             .filter_map(|check| check.status.clone())
@@ -56,7 +56,7 @@ impl Health {
             release_id: None,
             notes: None,
             output: None,
-            checks: Some(checks.clone()),
+            checks: Some(checks.to_owned()),
             links: None,
             service_id: None,
             description: Some("health of rust-kata-001 service".to_owned()),
