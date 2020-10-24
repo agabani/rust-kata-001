@@ -2,6 +2,12 @@ use crate::health::{Health, HealthCheck, HealthStatus};
 use serde::Serialize;
 use std::collections::HashMap;
 
+pub(crate) enum HealthResponseStatus {
+    Pass(HealthResponse),
+    Fail(HealthResponse),
+    Warn(HealthResponse),
+}
+
 #[derive(Serialize)]
 pub struct HealthResponse {
     #[serde(rename = "status")]
@@ -66,8 +72,8 @@ pub struct HealthCheckResponse {
 }
 
 impl HealthResponse {
-    pub(crate) fn from(health: &Health) -> Self {
-        HealthResponse {
+    pub(crate) fn from(health: &Health) -> HealthResponseStatus {
+        let response = HealthResponse {
             status: Self::map_status(&health.status),
             version: health.version.clone(),
             release_id: health.release_id.clone(),
@@ -77,6 +83,12 @@ impl HealthResponse {
             links: health.links.clone(),
             service_id: health.service_id.clone(),
             description: health.description.clone(),
+        };
+
+        match health.status {
+            HealthStatus::Pass => HealthResponseStatus::Pass(response),
+            HealthStatus::Fail => HealthResponseStatus::Fail(response),
+            HealthStatus::Warn => HealthResponseStatus::Warn(response),
         }
     }
 
