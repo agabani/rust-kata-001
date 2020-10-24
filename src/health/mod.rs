@@ -4,17 +4,18 @@ mod models;
 pub mod runtime;
 
 use async_trait::async_trait;
-use models::{HealthCheck, HealthStatus};
+use futures::Future;
+pub(crate) use models::{Health, HealthCheck, HealthStatus};
 
 #[async_trait]
-trait HealthChecker {
+pub(crate) trait HealthChecker {
     async fn check(&self) -> HealthCheck;
 }
 
-struct UptimeHealthChecker;
+pub(crate) struct UptimeHealthChecker;
 
 impl UptimeHealthChecker {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self
     }
 }
@@ -35,5 +36,25 @@ impl HealthChecker for UptimeHealthChecker {
             links: None,
             additional_keys: None,
         }
+    }
+}
+
+pub(crate) async fn check_all<HC>(checks: &[impl Fn() -> HC]) -> Health
+where
+    HC: Future<Output = HealthCheck>,
+{
+    let health_checks: Vec<HealthCheck> =
+        futures::future::join_all(checks.iter().map(|health_check| health_check())).await;
+
+    Health {
+        status: HealthStatus::Pass,
+        version: None,
+        release_id: None,
+        notes: None,
+        output: None,
+        checks: None,
+        links: None,
+        service_id: None,
+        description: None,
     }
 }

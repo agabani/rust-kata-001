@@ -1,3 +1,4 @@
+mod models;
 mod routes;
 
 use actix_web::{web, web::ServiceConfig};
