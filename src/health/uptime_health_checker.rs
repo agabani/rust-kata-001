@@ -1,4 +1,4 @@
-use crate::health::{HealthCheck, HealthChecker, HealthStatus};
+use super::{HealthCheck, HealthChecker, HealthStatus};
 
 pub(crate) struct UptimeHealthChecker;
 

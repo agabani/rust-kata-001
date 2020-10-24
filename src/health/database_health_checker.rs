@@ -1,6 +1,5 @@
-use crate::health::{HealthCheck, HealthChecker, HealthStatus};
-use sqlx::mysql::MySqlRow;
-use sqlx::Error;
+use super::{HealthCheck, HealthChecker, HealthStatus};
+use sqlx::{mysql::MySqlRow, Error};
 
 pub(crate) struct DatabaseHealthChecker<'a> {
     pool: &'a sqlx::MySqlPool,

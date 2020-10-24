@@ -1,9 +1,7 @@
 use crate::{
     health::{
-        database_health_checker::DatabaseHealthChecker,
-        internet_http_health_checker::InternetHttpHealthChecker,
-        internet_https_health_checker::InternetHttpsHealthChecker,
-        uptime_health_checker::UptimeHealthChecker, Health, HealthChecker,
+        DatabaseHealthChecker, Health, HealthChecker, InternetHttpHealthChecker,
+        InternetHttpsHealthChecker, UptimeHealthChecker,
     },
     routes::health::models::HealthResponse,
 };
