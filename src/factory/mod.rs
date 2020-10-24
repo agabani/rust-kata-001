@@ -1,2 +1,2 @@
 pub(crate) mod database_pool;
-pub(crate) mod http_client;
+pub(crate) mod http_client_pool;

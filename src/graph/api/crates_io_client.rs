@@ -97,13 +97,13 @@ pub(crate) struct VersionApiDto {
 
 #[cfg(test)]
 mod tests {
-    use crate::factory::http_client;
+    use crate::factory::http_client_pool;
     use crate::graph::api::crates_io_client::CratesIoClient;
 
     #[actix_rt::test]
     #[ignore]
     async fn integration_dependencies() -> Result<(), String> {
-        let client = http_client::new()?;
+        let client = http_client_pool::new()?;
         let client = CratesIoClient::new(&client);
 
         let result = client.dependencies("syn", "0.11.0").await?;
@@ -145,7 +145,7 @@ mod tests {
     #[actix_rt::test]
     #[ignore]
     async fn integration_versions() -> Result<(), String> {
-        let client = http_client::new()?;
+        let client = http_client_pool::new()?;
         let client = CratesIoClient::new(&client);
 
         let result = client.versions("clippy").await?;

@@ -12,8 +12,8 @@ pub fn new() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .default_headers(headers)
         .build()
-        .map_err(|e| {
-            log::error!("{}: error {:?}", fn_name, e);
-            format!("{}: error: {:?}", fn_name, e)
+        .map_err(|error| {
+            log::error!("{}: error={:?}", fn_name, error);
+            format!("{}: error={:?}", fn_name, error)
         })
 }

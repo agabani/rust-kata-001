@@ -181,7 +181,7 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::factory::http_client;
+    use crate::factory::http_client_pool;
     use crate::graph::api::Client;
 
     #[test]
@@ -216,7 +216,7 @@ mod tests {
     #[actix_rt::test]
     #[ignore]
     async fn integration_dependencies() -> Result<(), String> {
-        let client = http_client::new()?;
+        let client = http_client_pool::new()?;
         let client = Client::new(&client);
 
         let c = client
@@ -265,7 +265,7 @@ mod tests {
     #[actix_rt::test]
     #[ignore]
     async fn integration_edge_case_multiple_versions() -> Result<(), String> {
-        let client = http_client::new()?;
+        let client = http_client_pool::new()?;
         let client = Client::new(&client);
 
         let c = client
