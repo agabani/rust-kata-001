@@ -1,7 +1,8 @@
 mod config;
 mod factory;
 mod graph;
-mod status;
+mod health;
+mod routes;
 
 use actix_web::{App, HttpServer};
 pub use config::Config;
@@ -18,7 +19,7 @@ pub async fn run(config: &Config) -> Result<(), String> {
             .data(database_pool.clone())
             .data(http_client_pool.clone())
             .configure(graph::configure)
-            .configure(status::configure)
+            .configure(routes::configure)
     })
     .bind(&config.server_address)
     .map_err(|error| {

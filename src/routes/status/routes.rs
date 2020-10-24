@@ -1,9 +1,8 @@
-use crate::status::{database, internet, runtime};
-use actix_web::web::ServiceConfig;
+use crate::health::{database, internet, runtime};
 use actix_web::{get, HttpResponse, Responder};
 use std::collections::HashMap;
 
-#[get("/status")]
+#[get("")]
 pub async fn get(
     http_client: actix_web::web::Data<reqwest::Client>,
     database_pool: actix_web::web::Data<sqlx::mysql::MySqlPool>,
@@ -37,8 +36,4 @@ fn error_to_model(reason: String) -> HashMap<String, String> {
     map.insert("status".to_owned(), "unhealthy".to_owned());
     map.insert("reason".to_owned(), reason);
     map
-}
-
-pub fn configure(service_config: &mut ServiceConfig) {
-    service_config.service(get);
 }
