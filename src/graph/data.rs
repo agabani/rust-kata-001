@@ -1,4 +1,5 @@
 use super::domain::{Crate, CrateDependency};
+use semver::Version;
 use sqlx::{MySqlPool, Row};
 use std::collections::HashMap;
 
@@ -21,8 +22,8 @@ impl<'a> Database<'a> {
 
     pub async fn get_one_batch(
         &self,
-        name_version: &[(String, semver::Version)],
-    ) -> Result<HashMap<(String, semver::Version), Option<Crate>>, String> {
+        name_version: &[(String, Version)],
+    ) -> Result<HashMap<(String, Version), Option<Crate>>, String> {
         let fn_name = "get_many";
 
         let mut sql = "SELECT c.name, c.version, c.dependencies, cd.name, cd.version
@@ -165,7 +166,7 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
 
             let mut web_dto = Crate {
                 name: name.to_string(),
-                version: semver::Version::parse(version).unwrap(),
+                version: Version::parse(version).unwrap(),
                 dependency: Vec::new(),
             };
 
@@ -174,7 +175,7 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
                     if let Some(version) = &item.dependency_version {
                         web_dto.dependency.push(CrateDependency {
                             name: name.to_owned(),
-                            version: semver::Version::parse(version).unwrap(),
+                            version: Version::parse(version).unwrap(),
                         });
                     }
                 }
@@ -191,7 +192,7 @@ ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)",
 mod tests {
     use super::*;
     use crate::factory::database_pool;
-    use semver::Version;
+    use Version;
 
     #[test]
     fn transform() {
@@ -229,24 +230,24 @@ mod tests {
         let expected = vec![
             Crate {
                 name: "name 1".to_owned(),
-                version: semver::Version::parse("1.0.0").unwrap(),
+                version: Version::parse("1.0.0").unwrap(),
                 dependency: vec![
                     CrateDependency {
                         name: "sub name 1".to_owned(),
-                        version: semver::Version::parse("0.0.1").unwrap(),
+                        version: Version::parse("0.0.1").unwrap(),
                     },
                     CrateDependency {
                         name: "sub name 2".to_owned(),
-                        version: semver::Version::parse("0.0.2").unwrap(),
+                        version: Version::parse("0.0.2").unwrap(),
                     },
                 ],
             },
             Crate {
                 name: "name 2".to_owned(),
-                version: semver::Version::parse("2.0.0").unwrap(),
+                version: Version::parse("2.0.0").unwrap(),
                 dependency: vec![CrateDependency {
                     name: "sub name 1".to_owned(),
-                    version: semver::Version::parse("0.0.1").unwrap(),
+                    version: Version::parse("0.0.1").unwrap(),
                 }],
             },
         ];
@@ -270,16 +271,16 @@ mod tests {
 
         let crates = database
             .get_one_batch(&vec![
-                ("actix-web".to_owned(), semver::Version::new(3, 1, 0)),
-                ("rand".to_owned(), semver::Version::new(0, 7, 3)),
-                ("syn".to_owned(), semver::Version::new(1, 0, 33)),
+                ("actix-web".to_owned(), Version::new(3, 1, 0)),
+                ("rand".to_owned(), Version::new(0, 7, 3)),
+                ("syn".to_owned(), Version::new(1, 0, 33)),
             ])
             .await?;
 
         assert_eq!(crates.len(), 3, "expected 3 crates");
 
         let actix_web = crates
-            .get(&("actix-web".to_owned(), semver::Version::new(3, 1, 0)))
+            .get(&("actix-web".to_owned(), Version::new(3, 1, 0)))
             .clone()
             .expect("entry was not in the response")
             .clone()
@@ -289,7 +290,7 @@ mod tests {
         assert!(!actix_web.dependency.is_empty());
 
         let rand = crates
-            .get(&("rand".to_owned(), semver::Version::new(0, 7, 3)))
+            .get(&("rand".to_owned(), Version::new(0, 7, 3)))
             .clone()
             .expect("entry was not in the response")
             .clone()
@@ -299,7 +300,7 @@ mod tests {
         assert!(!rand.dependency.is_empty());
 
         let syn = crates
-            .get(&("syn".to_owned(), semver::Version::new(1, 0, 33)))
+            .get(&("syn".to_owned(), Version::new(1, 0, 33)))
             .clone()
             .expect("entry was not in the response")
             .clone()

@@ -1,9 +1,12 @@
-use super::{api, data, models};
-use crate::graph::domain::Crate;
-use crate::graph::flow::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
+use crate::graph::{
+    api, data,
+    domain::Crate,
+    flow::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne},
+    models,
+};
 use actix_web::{get, web, HttpResponse, Responder};
+use semver::Version;
 use sqlx::mysql;
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 
 #[get("")]
@@ -24,8 +27,7 @@ pub async fn list(
     };
 
     let version = match &query_parameters.version {
-        // Some(version) => version,
-        Some(version) => match semver::Version::parse(version) {
+        Some(version) => match Version::parse(version) {
             Ok(version) => version,
             Err(e) => {
                 return HttpResponse::BadRequest().json(models::ErrorWebDto {
@@ -86,7 +88,7 @@ struct Dependency<'a> {
 
 #[async_trait::async_trait]
 impl<'a> ApiGetOne for Dependency<'a> {
-    async fn execute(&self, name: String, version: &semver::Version) -> Result<Crate, String> {
+    async fn execute(&self, name: String, version: &Version) -> Result<Crate, String> {
         let client = api::Client::new(self.http_client);
         client.get_crate(&name, &version).await
     }
@@ -96,8 +98,8 @@ impl<'a> ApiGetOne for Dependency<'a> {
 impl<'a> DatabaseGetOneBatch for Dependency<'a> {
     async fn execute(
         &self,
-        crates: &[(String, semver::Version)],
-    ) -> Result<HashMap<(String, semver::Version), Option<Crate>, RandomState>, String> {
+        crates: &[(String, Version)],
+    ) -> Result<HashMap<(String, Version), Option<Crate>>, String> {
         let database = data::Database::new(self.database_pool);
         database.get_one_batch(crates).await
     }

@@ -1,9 +1,9 @@
-mod client;
+mod crates_io_client;
 
-use super::domain::Crate;
-use crate::graph::api::client::DependencyApiDto;
-use crate::graph::domain::CrateDependency;
-use client::CratesIoClient;
+use crate::graph::{
+    api::crates_io_client::{CratesIoClient, DependencyApiDto},
+    domain::{Crate, CrateDependency},
+};
 use semver::Version;
 use std::collections::HashMap;
 

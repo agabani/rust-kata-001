@@ -47,20 +47,21 @@ impl CrateWebDto {
 mod tests {
     use super::*;
     use crate::graph::domain::{Crate, CrateDependency};
+    use semver::Version;
 
     #[test]
     fn transform() {
         let input = Crate {
             name: "name".to_owned(),
-            version: semver::Version::parse("1.0.0").unwrap(),
+            version: Version::parse("1.0.0").unwrap(),
             dependency: vec![
                 CrateDependency {
                     name: "sub name 1".to_owned(),
-                    version: semver::Version::parse("0.0.1").unwrap(),
+                    version: Version::parse("0.0.1").unwrap(),
                 },
                 CrateDependency {
                     name: "sub name 2".to_owned(),
-                    version: semver::Version::parse("0.0.2").unwrap(),
+                    version: Version::parse("0.0.2").unwrap(),
                 },
             ],
         };

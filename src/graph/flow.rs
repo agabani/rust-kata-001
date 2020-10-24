@@ -1,17 +1,18 @@
 use super::domain::Crate;
+use semver::Version;
 use std::collections::HashMap;
 
 #[async_trait::async_trait]
 pub trait ApiGetOne {
-    async fn execute(&self, name: String, version: &semver::Version) -> Result<Crate, String>;
+    async fn execute(&self, name: String, version: &Version) -> Result<Crate, String>;
 }
 
 #[async_trait::async_trait]
 pub trait DatabaseGetOneBatch {
     async fn execute(
         &self,
-        crates: &[(String, semver::Version)],
-    ) -> Result<HashMap<(String, semver::Version), Option<Crate>>, String>;
+        crates: &[(String, Version)],
+    ) -> Result<HashMap<(String, Version), Option<Crate>>, String>;
 }
 
 #[async_trait::async_trait]
@@ -24,12 +25,12 @@ pub async fn get_dependency(
     db_save_one: &impl DatabaseSaveOne,
     api_get_one: &impl ApiGetOne,
     name: String,
-    version: semver::Version,
+    version: Version,
 ) -> Result<Vec<Crate>, String> {
     let fn_name = "get_dependency";
 
-    let mut hash: HashMap<(String, semver::Version), Crate> = HashMap::new();
-    let mut stack: Vec<(String, semver::Version)> = Vec::new();
+    let mut hash: HashMap<(String, Version), Crate> = HashMap::new();
+    let mut stack: Vec<(String, Version)> = Vec::new();
     stack.push((name, version));
 
     while !&stack.is_empty() {
@@ -109,5 +110,3 @@ pub async fn get_dependency(
 
     Ok(x)
 }
-
-// https://stackoverflow.com/questions/31362206/expected-bound-lifetime-parameter-found-concrete-lifetime-e0271/31365625#31365625
