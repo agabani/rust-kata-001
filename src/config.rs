@@ -16,3 +16,23 @@ impl Config {
         config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new() {
+        let config = Config::new(
+            "my database url",
+            "my server address host",
+            "my server address port",
+        );
+
+        assert_eq!(config.database_url, "my database url");
+        assert_eq!(
+            config.server_address,
+            "my server address host:my server address port"
+        );
+    }
+}
