@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub(crate) struct Health {
     pub(crate) status: HealthStatus,
     pub(crate) version: Option<String>,
@@ -12,6 +13,7 @@ pub(crate) struct Health {
     pub(crate) description: Option<String>,
 }
 
+#[derive(Clone)]
 pub(crate) struct HealthCheck {
     pub(crate) component_name: String,
     pub(crate) component_id: Option<String>,
@@ -26,8 +28,38 @@ pub(crate) struct HealthCheck {
     pub(crate) additional_keys: Option<HashMap<String, String>>,
 }
 
+#[derive(Clone, PartialEq)]
 pub(crate) enum HealthStatus {
     Pass,
     Fail,
     Warn,
+}
+
+impl Health {
+    pub(crate) fn from(checks: &Vec<HealthCheck>) -> Self {
+        let statuses = &checks
+            .iter()
+            .filter_map(|check| check.status.clone())
+            .collect::<Vec<_>>();
+
+        let status = if statuses.iter().any(|status| status.eq(&HealthStatus::Fail)) {
+            HealthStatus::Fail
+        } else if statuses.iter().any(|status| status.eq(&HealthStatus::Warn)) {
+            HealthStatus::Warn
+        } else {
+            HealthStatus::Pass
+        };
+
+        Health {
+            status,
+            version: None,
+            release_id: None,
+            notes: None,
+            output: None,
+            checks: Some(checks.clone()),
+            links: None,
+            service_id: None,
+            description: Some("health of rust-kata-001 service".to_owned()),
+        }
+    }
 }
