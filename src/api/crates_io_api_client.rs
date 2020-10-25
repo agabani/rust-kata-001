@@ -1,14 +1,12 @@
 use serde::Deserialize;
 
-pub(crate) struct CratesIoClient<'a> {
-    http_client: &'a reqwest::Client,
+pub(crate) struct CratesIoApiClient<'a> {
+    http_client_pool: &'a reqwest::Client,
 }
 
-impl<'a> CratesIoClient<'a> {
-    pub(crate) fn new(client: &'a reqwest::Client) -> CratesIoClient<'a> {
-        CratesIoClient {
-            http_client: client,
-        }
+impl<'a> CratesIoApiClient<'a> {
+    pub(crate) fn new(http_client_pool: &'a reqwest::Client) -> CratesIoApiClient<'a> {
+        CratesIoApiClient { http_client_pool }
     }
 
     /// Gets the dependencies of a crate.
@@ -43,7 +41,7 @@ impl<'a> CratesIoClient<'a> {
     ) -> Result<T, String> {
         log::info!("{}: url={}", fn_name, url);
 
-        let response = self.http_client.get(url).send().await.map_err(|e| {
+        let response = self.http_client_pool.get(url).send().await.map_err(|e| {
             log::error!("{}: send request error {:?}", fn_name, e);
             format!("{}: send request error: {:?}", fn_name, e)
         })?;
@@ -104,7 +102,7 @@ mod tests {
     #[ignore]
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client_pool::new()?;
-        let client = CratesIoClient::new(&client);
+        let client = CratesIoApiClient::new(&client);
 
         let result = client.dependencies("syn", "0.11.0").await?;
 
@@ -146,7 +144,7 @@ mod tests {
     #[ignore]
     async fn integration_versions() -> Result<(), String> {
         let client = http_client_pool::new()?;
-        let client = CratesIoClient::new(&client);
+        let client = CratesIoApiClient::new(&client);
 
         let result = client.versions("clippy").await?;
 

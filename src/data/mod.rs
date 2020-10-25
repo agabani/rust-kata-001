@@ -25,7 +25,7 @@ impl<'a> Data<'a> {
         name: String,
         version: Version,
     ) -> Result<Vec<Crate>, String> {
-        let fn_name = "get_dependency";
+        let fn_name = "get_dependency_graph";
 
         let mut hash: HashMap<(String, Version), Crate> = HashMap::new();
         let mut stack: Vec<(String, Version)> = Vec::new();
@@ -55,9 +55,8 @@ impl<'a> Data<'a> {
                     })
                     .collect::<Vec<_>>();
 
-                let futures = missing_name_versions
-                    .iter()
-                    .map(|(name, version)| {
+                let api_crates = futures::future::join_all(missing_name_versions.iter().map(
+                    |(name, version)| {
                         let name = name.to_owned();
                         let version = version.to_owned();
                         async move {
@@ -67,10 +66,9 @@ impl<'a> Data<'a> {
 
                             Ok::<Crate, String>(c)
                         }
-                    })
-                    .collect::<Vec<_>>();
-
-                let api_crates = futures::future::join_all(futures).await;
+                    },
+                ))
+                .await;
 
                 for api_crate_result in api_crates {
                     if let Err(e) = api_crate_result {
@@ -102,10 +100,10 @@ impl<'a> Data<'a> {
             }
         }
 
-        let mut x = hash.into_iter().map(|(_, c)| c).collect::<Vec<_>>();
+        let mut results = hash.into_iter().map(|(_, c)| c).collect::<Vec<_>>();
 
-        x.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+        results.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
 
-        Ok(x)
+        Ok(results)
     }
 }

@@ -1,18 +1,18 @@
-mod crates_io_client;
+mod crates_io_api_client;
 
-use crate::api::crates_io_client::{CratesIoClient, DependencyApiDto};
+use crate::api::crates_io_api_client::{CratesIoApiClient, DependencyApiDto};
 use crate::domain::{Crate, CrateDependency};
 use semver::Version;
 use std::collections::HashMap;
 
 pub(crate) struct Api<'a> {
-    crates_io_client: CratesIoClient<'a>,
+    crates_io_api_client: CratesIoApiClient<'a>,
 }
 
 impl<'a> Api<'a> {
-    pub(crate) fn new(client: &'a reqwest::Client) -> Api<'a> {
+    pub(crate) fn new(http_client_pool: &'a reqwest::Client) -> Api<'a> {
         Api {
-            crates_io_client: CratesIoClient::new(client),
+            crates_io_api_client: CratesIoApiClient::new(http_client_pool),
         }
     }
 
@@ -21,7 +21,7 @@ impl<'a> Api<'a> {
         let fn_name = "get_crate";
 
         let dto = self
-            .crates_io_client
+            .crates_io_api_client
             .dependencies(name, &version.to_string())
             .await?;
 
@@ -99,7 +99,10 @@ impl<'a> Api<'a> {
 
         let version_reqs = Self::parse_requirements(&dependency.req)?;
 
-        let dto = self.crates_io_client.versions(&dependency.crate_id).await?;
+        let dto = self
+            .crates_io_api_client
+            .versions(&dependency.crate_id)
+            .await?;
 
         if let Some(e) = dto.errors {
             log::error!("{}: crates.io client error {:?}", fn_name, e);
