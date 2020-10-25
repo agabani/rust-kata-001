@@ -3,9 +3,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 pub(crate) enum HealthResponseStatus {
-    Pass(HealthResponse),
-    Fail(HealthResponse),
-    Warn(HealthResponse),
+    Ok(HealthResponse),
+    InternalServerError(HealthResponse),
 }
 
 #[derive(Serialize)]
@@ -86,9 +85,9 @@ impl HealthResponse {
         };
 
         match health.status {
-            HealthStatus::Pass => HealthResponseStatus::Pass(response),
-            HealthStatus::Fail => HealthResponseStatus::Fail(response),
-            HealthStatus::Warn => HealthResponseStatus::Warn(response),
+            HealthStatus::Pass => HealthResponseStatus::Ok(response),
+            HealthStatus::Fail => HealthResponseStatus::InternalServerError(response),
+            HealthStatus::Warn => HealthResponseStatus::Ok(response),
         }
     }
 

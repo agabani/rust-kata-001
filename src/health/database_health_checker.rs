@@ -1,4 +1,4 @@
-use super::{HealthCheck, HealthChecker, HealthStatus};
+use super::{HealthCheck, HealthCheckerAction, HealthStatus};
 use sqlx::{mysql::MySqlRow, Error};
 
 pub(crate) struct DatabaseHealthChecker<'a> {
@@ -19,7 +19,7 @@ impl<'a> DatabaseHealthChecker<'a> {
 }
 
 #[async_trait::async_trait]
-impl<'a> HealthChecker for DatabaseHealthChecker<'a> {
+impl<'a> HealthCheckerAction for DatabaseHealthChecker<'a> {
     async fn check(&self) -> HealthCheck {
         let value = sqlx::query("SELECT ? as Status")
             .bind("healthy")

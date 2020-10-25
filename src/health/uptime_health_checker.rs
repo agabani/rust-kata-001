@@ -1,4 +1,4 @@
-use super::{HealthCheck, HealthChecker, HealthStatus};
+use super::{HealthCheck, HealthCheckerAction, HealthStatus};
 
 pub(crate) struct UptimeHealthChecker;
 
@@ -9,7 +9,7 @@ impl UptimeHealthChecker {
 }
 
 #[async_trait::async_trait]
-impl HealthChecker for UptimeHealthChecker {
+impl HealthCheckerAction for UptimeHealthChecker {
     async fn check(&self) -> HealthCheck {
         HealthCheck {
             component_name: "uptime".to_owned(),

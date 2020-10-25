@@ -1,4 +1,4 @@
-use super::{HealthCheck, HealthChecker, HealthStatus};
+use super::{HealthCheck, HealthCheckerAction, HealthStatus};
 use reqwest::Response;
 
 pub(crate) struct InternetHttpHealthChecker<'a> {
@@ -19,7 +19,7 @@ impl<'a> InternetHttpHealthChecker<'a> {
 }
 
 #[async_trait::async_trait]
-impl<'a> HealthChecker for InternetHttpHealthChecker<'a> {
+impl<'a> HealthCheckerAction for InternetHttpHealthChecker<'a> {
     async fn check(&self) -> HealthCheck {
         let response = self.pool.get("http://httpbin.org/anything").send().await;
 
