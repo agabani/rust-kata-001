@@ -1,3 +1,4 @@
+mod common;
 mod database_health_checker;
 mod internet_http_health_checker;
 mod internet_https_health_checker;
@@ -6,15 +7,11 @@ mod uptime_health_checker;
 
 pub(crate) use models::{Health, HealthCheck, HealthStatus};
 
+use common::HealthCheckerAction;
 use database_health_checker::DatabaseHealthChecker;
 use internet_http_health_checker::InternetHttpHealthChecker;
 use internet_https_health_checker::InternetHttpsHealthChecker;
 use uptime_health_checker::UptimeHealthChecker;
-
-#[async_trait::async_trait]
-trait HealthCheckerAction {
-    async fn check(&self) -> HealthCheck;
-}
 
 pub(crate) struct HealthChecker<'a> {
     database: DatabaseHealthChecker<'a>,

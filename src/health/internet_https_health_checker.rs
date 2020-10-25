@@ -1,5 +1,5 @@
-use super::{HealthCheck, HealthCheckerAction, HealthStatus};
-use reqwest::Response;
+use super::HealthCheck;
+use crate::health::common::{map_internet_status, HealthCheckerAction};
 
 pub(crate) struct InternetHttpsHealthChecker<'a> {
     pool: &'a reqwest::Client,
@@ -8,13 +8,6 @@ pub(crate) struct InternetHttpsHealthChecker<'a> {
 impl<'a> InternetHttpsHealthChecker<'a> {
     pub(crate) fn new(pool: &'a reqwest::Client) -> Self {
         Self { pool }
-    }
-
-    fn map_status(result: &Result<Response, reqwest::Error>) -> Option<HealthStatus> {
-        match result {
-            Ok(_) => Some(HealthStatus::Pass),
-            Err(_) => Some(HealthStatus::Fail),
-        }
     }
 }
 
@@ -29,7 +22,7 @@ impl<'a> HealthCheckerAction for InternetHttpsHealthChecker<'a> {
             component_type: Some("system".to_owned()),
             observed_value: None,
             observed_unit: None,
-            status: Self::map_status(&response),
+            status: map_internet_status(&response),
             affected_endpoints: None,
             time: None,
             output: None,

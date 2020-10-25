@@ -1,4 +1,5 @@
-use super::{HealthCheck, HealthCheckerAction, HealthStatus};
+use super::{HealthCheck, HealthStatus};
+use crate::health::common::HealthCheckerAction;
 
 pub(crate) struct UptimeHealthChecker;
 

@@ -1,5 +1,5 @@
-use super::{HealthCheck, HealthCheckerAction, HealthStatus};
-use sqlx::{mysql::MySqlRow, Error};
+use super::HealthCheck;
+use crate::health::common::{map_database_status, HealthCheckerAction};
 
 pub(crate) struct DatabaseHealthChecker<'a> {
     pool: &'a sqlx::MySqlPool,
@@ -8,13 +8,6 @@ pub(crate) struct DatabaseHealthChecker<'a> {
 impl<'a> DatabaseHealthChecker<'a> {
     pub(crate) fn new(pool: &'a sqlx::MySqlPool) -> Self {
         Self { pool }
-    }
-
-    fn map_status(result: &Result<MySqlRow, Error>) -> Option<HealthStatus> {
-        match result {
-            Ok(_) => Some(HealthStatus::Pass),
-            Err(_) => Some(HealthStatus::Fail),
-        }
     }
 }
 
@@ -32,7 +25,7 @@ impl<'a> HealthCheckerAction for DatabaseHealthChecker<'a> {
             component_type: Some("datastore".to_owned()),
             observed_value: None,
             observed_unit: None,
-            status: Self::map_status(&value),
+            status: map_database_status(&value),
             affected_endpoints: None,
             time: None,
             output: None,
