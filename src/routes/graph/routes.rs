@@ -1,7 +1,7 @@
 use crate::api;
 use crate::domain::Crate;
-use crate::graph::flow::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
-use crate::graph::{data, models};
+use crate::graph::{get_dependency, ApiGetOne, Database, DatabaseGetOneBatch, DatabaseSaveOne};
+use crate::routes::graph::models;
 use actix_web::{get, web, HttpResponse, Responder};
 use semver::Version;
 use sqlx::mysql;
@@ -75,10 +75,6 @@ pub async fn list(
     }
 }
 
-pub fn configure(service_config: &mut web::ServiceConfig) {
-    service_config.service(web::scope("/graph").service(list));
-}
-
 struct Dependency<'a> {
     http_client: &'a reqwest::Client,
     database_pool: &'a mysql::MySqlPool,
@@ -98,7 +94,7 @@ impl<'a> DatabaseGetOneBatch for Dependency<'a> {
         &self,
         crates: &[(String, Version)],
     ) -> Result<HashMap<(String, Version), Option<Crate>>, String> {
-        let database = data::Database::new(self.database_pool);
+        let database = Database::new(self.database_pool);
         database.get_one_batch(crates).await
     }
 }
@@ -106,7 +102,7 @@ impl<'a> DatabaseGetOneBatch for Dependency<'a> {
 #[async_trait::async_trait]
 impl<'a> DatabaseSaveOne for Dependency<'a> {
     async fn execute(&self, c: &Crate) -> Result<(), String> {
-        let database = data::Database::new(self.database_pool);
+        let database = Database::new(self.database_pool);
         database.save_one(c).await
     }
 }

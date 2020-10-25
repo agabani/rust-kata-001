@@ -22,7 +22,6 @@ pub async fn run(config: &Config) -> Result<(), String> {
         App::new()
             .data(database_pool.clone())
             .data(http_client_pool.clone())
-            .configure(graph::configure)
             .configure(routes::configure)
     })
     .bind(&config.server_address)

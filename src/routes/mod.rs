@@ -1,7 +1,10 @@
+mod graph;
 mod health;
 
 use actix_web::{web, web::ServiceConfig};
 
 pub fn configure(service_config: &mut ServiceConfig) {
-    service_config.service(web::scope("/health").configure(health::configure));
+    service_config
+        .service(web::scope("/graph").configure(graph::configure))
+        .service(web::scope("/health").configure(health::configure));
 }
