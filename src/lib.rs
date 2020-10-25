@@ -16,7 +16,7 @@ pub use config::Config;
 pub async fn run(config: &Config) -> Result<(), String> {
     let fn_name = "run";
 
-    let database_pool = database_pool::new(&config.database_url).await?;
+    let database_pool = database_pool::new(&config.mysql_url).await?;
     let http_client_pool = http_client_pool::new()?;
 
     HttpServer::new(move || {

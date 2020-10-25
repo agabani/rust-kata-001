@@ -6,11 +6,11 @@ async fn main() -> Result<(), String> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    let database_url = resolve_parameter("DATABASE_URL")?;
+    let mysql_url = resolve_parameter("MYSQL_URL")?;
     let server_address_host = resolve_parameter("SERVER_ADDRESS_HOST")?;
     let server_address_port = resolve_parameter("SERVER_ADDRESS_PORT")?;
 
-    let config = Config::new(&database_url, &server_address_host, &server_address_port);
+    let config = Config::new(&mysql_url, &server_address_host, &server_address_port);
 
     rust_kata_001::run(&config).await
 }
