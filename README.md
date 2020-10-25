@@ -1,5 +1,59 @@
 # rust-kata-001
 
+## Endpoints
+
+### /health
+
+Standardized health check ([Health Check Response RFC Draft for HTTP APIs](https://github.com/inadarei/rfc-healthcheck))
+
+#### Example Output
+
+```
+GET /health HTTP/1.1
+
+HTTP/1.1 200 OK
+content-type: application/health+json
+
+{
+    "status": "pass",
+    "version": "0",
+    "releaseId": "0.1.0",
+    "description": "health of rust-kata-001 service",
+    "checks": {
+        "internet:http:connectivity": [
+            {
+                "componentType": "system",
+                "status": "pass",
+                "time": "2020-10-25T01:28:41Z"
+            }
+        ],
+        "internet:https:connectivity": [
+            {
+                "componentType": "system",
+                "status": "pass",
+                "time": "2020-10-25T01:28:41Z"
+            }
+        ],
+        "uptime": [
+            {
+                "componentType": "system",
+                "status": "pass",
+                "time": "2020-10-25T01:28:41Z"
+            }
+        ],
+        "mysql:connectivity": [
+            {
+                "componentType": "datastore",
+                "status": "pass",
+                "time": "2020-10-25T01:28:41Z"
+            }
+        ]
+    }
+}
+```
+
+
+
 Edge Cases:
 
 https://crates.io/api/v1/crates/syn/0.11.0/dependencies
@@ -145,7 +199,3 @@ Multi req
     ]
 }
 ```
-
-## RFC
-
-* [Health Check Response RFC Draft for HTTP APIs](https://github.com/inadarei/rfc-healthcheck)
