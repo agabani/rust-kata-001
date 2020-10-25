@@ -41,7 +41,7 @@ content-type: application/json
 ]
 ```
 
-### /health
+## /health
 
 Standardized health check ([Health Check Response RFC Draft for HTTP APIs](https://github.com/inadarei/rfc-healthcheck))
 
