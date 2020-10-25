@@ -9,3 +9,7 @@ services:
     image: library/mysql:5.6.49
     ports:
     - 3306:3306
+  redis:
+    image: library/redis:6.0.8
+    ports:
+    - 6379:6379
