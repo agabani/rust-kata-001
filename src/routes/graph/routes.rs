@@ -1,6 +1,6 @@
 use crate::api;
 use crate::domain::Crate;
-use crate::graph::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
+use crate::data::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
 use crate::persistence::Persistence;
 use crate::routes::graph::models;
 use actix_web::{get, web, HttpResponse, Responder};
