@@ -5,13 +5,13 @@ use crate::domain::{Crate, CrateDependency};
 use semver::Version;
 use std::collections::HashMap;
 
-pub struct Client<'a> {
+pub struct Api<'a> {
     crates_io_client: CratesIoClient<'a>,
 }
 
-impl<'a> Client<'a> {
-    pub fn new(client: &'a reqwest::Client) -> Client<'a> {
-        Client {
+impl<'a> Api<'a> {
+    pub fn new(client: &'a reqwest::Client) -> Api<'a> {
+        Api {
             crates_io_client: CratesIoClient::new(client),
         }
     }
@@ -185,22 +185,19 @@ mod tests {
     #[test]
     fn unit_sanitise_version() {
         // numbers
-        assert_eq!(Client::sanitise_version("1"), None);
-        assert_eq!(Client::sanitise_version("2.3"), None);
-        assert_eq!(Client::sanitise_version("4.5.6"), Some("4.5.6".to_owned()));
-        assert_eq!(
-            Client::sanitise_version("7.8.9-b"),
-            Some("7.8.9-b".to_owned())
-        );
+        assert_eq!(Api::sanitise_version("1"), None);
+        assert_eq!(Api::sanitise_version("2.3"), None);
+        assert_eq!(Api::sanitise_version("4.5.6"), Some("4.5.6".to_owned()));
+        assert_eq!(Api::sanitise_version("7.8.9-b"), Some("7.8.9-b".to_owned()));
 
         // wild cards
-        assert_eq!(Client::sanitise_version("*"), None);
-        assert_eq!(Client::sanitise_version("1.*"), None);
-        assert_eq!(Client::sanitise_version("1.*.*"), None);
-        assert_eq!(Client::sanitise_version("1.2.*"), None);
+        assert_eq!(Api::sanitise_version("*"), None);
+        assert_eq!(Api::sanitise_version("1.*"), None);
+        assert_eq!(Api::sanitise_version("1.*.*"), None);
+        assert_eq!(Api::sanitise_version("1.2.*"), None);
 
         // requirements
-        assert_eq!(Client::sanitise_version(">=0.0.9, <0.4"), None);
+        assert_eq!(Api::sanitise_version(">=0.0.9, <0.4"), None);
     }
 
     #[test]
@@ -215,7 +212,7 @@ mod tests {
     #[ignore]
     async fn integration_dependencies() -> Result<(), String> {
         let client = http_client_pool::new()?;
-        let client = Client::new(&client);
+        let client = Api::new(&client);
 
         let c = client
             .get_crate("time", &semver::Version::parse("0.2.22").unwrap())
@@ -264,7 +261,7 @@ mod tests {
     #[ignore]
     async fn integration_edge_case_multiple_versions() -> Result<(), String> {
         let client = http_client_pool::new()?;
-        let client = Client::new(&client);
+        let client = Api::new(&client);
 
         let c = client
             .get_crate("yaml-rust", &semver::Version::parse("0.3.5").unwrap())

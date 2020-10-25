@@ -1,8 +1,8 @@
 mod api;
 mod config;
+mod data;
 mod domain;
 mod factory;
-mod data;
 mod health;
 mod persistence;
 mod routes;

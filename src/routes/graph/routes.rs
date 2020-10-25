@@ -1,12 +1,8 @@
-use crate::api;
-use crate::domain::Crate;
-use crate::data::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
-use crate::persistence::Persistence;
+use crate::data::Data;
 use crate::routes::graph::models;
 use actix_web::{get, web, HttpResponse, Responder};
 use semver::Version;
 use sqlx::mysql;
-use std::collections::HashMap;
 
 #[get("")]
 pub async fn list(
@@ -43,21 +39,10 @@ pub async fn list(
         }
     };
 
-    // dependencies
-    let dependency = Dependency {
-        database_pool: database_pool.get_ref(),
-        http_client: http_client.get_ref(),
-    };
-
-    // flow
-    let result = get_dependency(
-        &dependency,
-        &dependency,
-        &dependency,
-        name.to_owned(),
-        version.to_owned(),
-    )
-    .await;
+    // data
+    let result = Data::new(database_pool.get_ref(), http_client.get_ref())
+        .get_dependency_graph(name.to_owned(), version.to_owned())
+        .await;
 
     // response
     match result {
@@ -73,37 +58,5 @@ pub async fn list(
                 error_message: e,
             })
         }
-    }
-}
-
-struct Dependency<'a> {
-    http_client: &'a reqwest::Client,
-    database_pool: &'a mysql::MySqlPool,
-}
-
-#[async_trait::async_trait]
-impl<'a> ApiGetOne for Dependency<'a> {
-    async fn execute(&self, name: String, version: &Version) -> Result<Crate, String> {
-        let client = api::Client::new(self.http_client);
-        client.get_crate(&name, &version).await
-    }
-}
-
-#[async_trait::async_trait]
-impl<'a> DatabaseGetOneBatch for Dependency<'a> {
-    async fn execute(
-        &self,
-        crates: &[(String, Version)],
-    ) -> Result<HashMap<(String, Version), Option<Crate>>, String> {
-        let persistence = Persistence::new(self.database_pool);
-        persistence.get_one_batch(crates).await
-    }
-}
-
-#[async_trait::async_trait]
-impl<'a> DatabaseSaveOne for Dependency<'a> {
-    async fn execute(&self, c: &Crate) -> Result<(), String> {
-        let persistence = Persistence::new(self.database_pool);
-        persistence.save_one(c).await
     }
 }
