@@ -4,6 +4,9 @@ use crate::routes::health::models::HealthResponseStatus;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::mysql;
 
+const CONTENT_TYPE_HEADER: &str = "content-type";
+const CONTENT_TYPE_VALUE: &str = "application/health+json";
+
 #[get("")]
 pub async fn get(
     database_pool: web::Data<mysql::MySqlPool>,
@@ -14,9 +17,11 @@ pub async fn get(
         .await;
 
     match HealthResponse::from(&health) {
-        HealthResponseStatus::Ok(response) => HttpResponse::Ok().json(response),
-        HealthResponseStatus::InternalServerError(response) => {
-            HttpResponse::InternalServerError().json(response)
-        }
+        HealthResponseStatus::Ok(response) => HttpResponse::Ok()
+            .json(response)
+            .with_header(CONTENT_TYPE_HEADER, CONTENT_TYPE_VALUE),
+        HealthResponseStatus::InternalServerError(response) => HttpResponse::InternalServerError()
+            .json(response)
+            .with_header(CONTENT_TYPE_HEADER, CONTENT_TYPE_VALUE),
     }
 }
