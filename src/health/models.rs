@@ -52,8 +52,8 @@ impl Health {
 
         Health {
             status,
-            version: None,
-            release_id: None,
+            version: Some(env!("CARGO_PKG_VERSION_MAJOR").to_owned()),
+            release_id: Some(env!("CARGO_PKG_VERSION").to_owned()),
             notes: None,
             output: None,
             checks: Some(checks.to_owned()),

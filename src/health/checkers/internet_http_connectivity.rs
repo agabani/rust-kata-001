@@ -1,5 +1,5 @@
-use crate::health::checkers::HealthCheckerAction;
 use crate::health::checkers::{get_time, map_internet_status};
+use crate::health::checkers::{map_internet_output, HealthCheckerAction};
 use crate::health::HealthCheck;
 
 pub(crate) struct InternetHttpConnectivityHealthChecker<'a> {
@@ -26,7 +26,7 @@ impl<'a> HealthCheckerAction for InternetHttpConnectivityHealthChecker<'a> {
             status: map_internet_status(&response),
             affected_endpoints: None,
             time: get_time(),
-            output: None,
+            output: map_internet_output(&response),
             links: None,
             additional_keys: None,
         }

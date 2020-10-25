@@ -1,5 +1,5 @@
-use crate::health::checkers::HealthCheckerAction;
 use crate::health::checkers::{get_time, map_database_status};
+use crate::health::checkers::{map_database_output, HealthCheckerAction};
 use crate::health::HealthCheck;
 
 pub(crate) struct MySqlConnectivityHealthChecker<'a> {
@@ -29,7 +29,7 @@ impl<'a> HealthCheckerAction for MySqlConnectivityHealthChecker<'a> {
             status: map_database_status(&value),
             affected_endpoints: None,
             time: get_time(),
-            output: None,
+            output: map_database_output(&value),
             links: None,
             additional_keys: None,
         }
