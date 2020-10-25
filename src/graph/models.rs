@@ -1,4 +1,4 @@
-use crate::graph::domain::Crate;
+use crate::domain::Crate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -46,7 +46,7 @@ impl CrateWebDto {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::domain::{Crate, CrateDependency};
+    use crate::domain::CrateDependency;
     use semver::Version;
 
     #[test]

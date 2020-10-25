@@ -1,4 +1,4 @@
-use super::domain::Crate;
+use crate::domain::Crate;
 use semver::Version;
 use std::collections::HashMap;
 

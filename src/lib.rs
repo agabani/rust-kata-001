@@ -1,4 +1,6 @@
+mod api;
 mod config;
+mod domain;
 mod factory;
 mod graph;
 mod health;

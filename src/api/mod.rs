@@ -1,9 +1,7 @@
 mod crates_io_client;
 
-use crate::graph::{
-    api::crates_io_client::{CratesIoClient, DependencyApiDto},
-    domain::{Crate, CrateDependency},
-};
+use crate::api::crates_io_client::{CratesIoClient, DependencyApiDto};
+use crate::domain::{Crate, CrateDependency};
 use semver::Version;
 use std::collections::HashMap;
 
@@ -181,8 +179,8 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::factory::http_client_pool;
-    use crate::graph::api::Client;
 
     #[test]
     fn unit_sanitise_version() {

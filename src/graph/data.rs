@@ -1,4 +1,4 @@
-use super::domain::{Crate, CrateDependency};
+use crate::domain::{Crate, CrateDependency};
 use semver::Version;
 use sqlx::{MySqlPool, Row};
 use std::collections::HashMap;

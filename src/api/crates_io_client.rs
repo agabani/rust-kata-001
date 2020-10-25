@@ -97,8 +97,8 @@ pub(crate) struct VersionApiDto {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::factory::http_client_pool;
-    use crate::graph::api::crates_io_client::CratesIoClient;
 
     #[actix_rt::test]
     #[ignore]

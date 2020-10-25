@@ -1,9 +1,7 @@
-use crate::graph::{
-    api, data,
-    domain::Crate,
-    flow::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne},
-    models,
-};
+use crate::api;
+use crate::domain::Crate;
+use crate::graph::flow::{get_dependency, ApiGetOne, DatabaseGetOneBatch, DatabaseSaveOne};
+use crate::graph::{data, models};
 use actix_web::{get, web, HttpResponse, Responder};
 use semver::Version;
 use sqlx::mysql;
