@@ -5,6 +5,7 @@ pub(crate) mod uptime;
 
 use crate::health::HealthCheck;
 use crate::health::HealthStatus;
+use chrono::{SecondsFormat, Utc};
 
 #[async_trait::async_trait]
 pub(crate) trait HealthCheckerAction {
@@ -25,4 +26,8 @@ fn map_internet_status(result: &Result<reqwest::Response, reqwest::Error>) -> Op
         Ok(_) => Some(HealthStatus::Pass),
         Err(_) => Some(HealthStatus::Fail),
     }
+}
+
+fn get_time() -> Option<String> {
+    Some(Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true))
 }

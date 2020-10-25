@@ -1,4 +1,4 @@
-use crate::health::checkers::HealthCheckerAction;
+use crate::health::checkers::{get_time, HealthCheckerAction};
 use crate::health::HealthCheck;
 use crate::health::HealthStatus;
 
@@ -21,7 +21,7 @@ impl HealthCheckerAction for UptimeHealthChecker {
             observed_unit: None,
             status: Some(HealthStatus::Pass),
             affected_endpoints: None,
-            time: None,
+            time: get_time(),
             output: None,
             links: None,
             additional_keys: None,
