@@ -5,7 +5,7 @@ use semver::Version;
 use sqlx::mysql;
 
 #[get("")]
-pub async fn list(
+pub(crate) async fn list(
     database_pool: web::Data<mysql::MySqlPool>,
     http_client: web::Data<reqwest::Client>,
     query_parameters: web::Query<models::ListQueryParams>,

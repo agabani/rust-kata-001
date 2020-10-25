@@ -1,11 +1,11 @@
 use serde::Deserialize;
 
-pub struct CratesIoClient<'a> {
+pub(crate) struct CratesIoClient<'a> {
     http_client: &'a reqwest::Client,
 }
 
 impl<'a> CratesIoClient<'a> {
-    pub fn new(client: &'a reqwest::Client) -> CratesIoClient<'a> {
+    pub(crate) fn new(client: &'a reqwest::Client) -> CratesIoClient<'a> {
         CratesIoClient {
             http_client: client,
         }

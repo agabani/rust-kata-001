@@ -1,11 +1,11 @@
 mod checkers;
 mod models;
 
-use checkers::internet_http_connectivity::InternetHttpConnectivityHealthChecker;
-use checkers::internet_https_connectivity::InternetHttpsConnectivityHealthChecker;
-use checkers::mysql_connectivity::MySqlConnectivityHealthChecker;
-use checkers::uptime::UptimeHealthChecker;
 use checkers::HealthCheckerAction;
+use checkers::InternetHttpConnectivityHealthChecker;
+use checkers::InternetHttpsConnectivityHealthChecker;
+use checkers::MySqlConnectivityHealthChecker;
+use checkers::UptimeHealthChecker;
 
 pub(crate) use models::{Health, HealthCheck, HealthStatus};
 

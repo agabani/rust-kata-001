@@ -4,20 +4,23 @@ use crate::persistence::Persistence;
 use semver::Version;
 use std::collections::HashMap;
 
-pub struct Data<'a> {
+pub(crate) struct Data<'a> {
     api: Api<'a>,
     persistence: Persistence<'a>,
 }
 
 impl<'a> Data<'a> {
-    pub fn new(database_pool: &'a sqlx::MySqlPool, http_client_pool: &'a reqwest::Client) -> Self {
+    pub(crate) fn new(
+        database_pool: &'a sqlx::MySqlPool,
+        http_client_pool: &'a reqwest::Client,
+    ) -> Self {
         Self {
             api: Api::new(http_client_pool),
             persistence: Persistence::new(database_pool),
         }
     }
 
-    pub async fn get_dependency_graph(
+    pub(crate) async fn get_dependency_graph(
         &self,
         name: String,
         version: Version,

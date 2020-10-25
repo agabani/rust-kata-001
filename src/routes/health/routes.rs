@@ -8,7 +8,7 @@ const CONTENT_TYPE_HEADER: &str = "content-type";
 const CONTENT_TYPE_VALUE: &str = "application/health+json";
 
 #[get("")]
-pub async fn get(
+pub(crate) async fn get(
     database_pool: web::Data<mysql::MySqlPool>,
     http_client_pool: web::Data<reqwest::Client>,
 ) -> impl Responder {

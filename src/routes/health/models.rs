@@ -10,66 +10,66 @@ pub(crate) enum HealthResponseStatus {
 }
 
 #[derive(Serialize)]
-pub struct HealthResponse {
+pub(crate) struct HealthResponse {
     #[serde(rename = "status")]
-    pub status: String,
+    pub(crate) status: String,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "version")]
-    pub version: Option<String>,
+    pub(crate) version: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "releaseId")]
-    pub release_id: Option<String>,
+    pub(crate) release_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "notes")]
-    pub notes: Option<Vec<String>>,
+    pub(crate) notes: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "output")]
-    pub output: Option<String>,
+    pub(crate) output: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "serviceId")]
-    pub service_id: Option<String>,
+    pub(crate) service_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "description")]
-    pub description: Option<String>,
+    pub(crate) description: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "checks")]
-    pub checks: Option<HashMap<String, Vec<HealthCheckResponse>>>,
+    pub(crate) checks: Option<HashMap<String, Vec<HealthCheckResponse>>>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "links")]
-    pub links: Option<HashMap<String, String>>,
+    pub(crate) links: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize)]
-pub struct HealthCheckResponse {
+pub(crate) struct HealthCheckResponse {
     #[serde(skip_serializing_if = "Option::is_none", rename = "componentId")]
-    pub component_id: Option<String>,
+    pub(crate) component_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "componentType")]
-    pub component_type: Option<String>,
+    pub(crate) component_type: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "observedValue")]
-    pub observed_value: Option<String>,
+    pub(crate) observed_value: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "observedUnit")]
-    pub observed_unit: Option<String>,
+    pub(crate) observed_unit: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "status")]
-    pub status: Option<String>,
+    pub(crate) status: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "affectedEndpoints")]
-    pub affected_endpoints: Option<Vec<String>>,
+    pub(crate) affected_endpoints: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "time")]
-    pub time: Option<String>,
+    pub(crate) time: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "output")]
-    pub output: Option<String>,
+    pub(crate) output: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "links")]
-    pub links: Option<HashMap<String, String>>,
+    pub(crate) links: Option<HashMap<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "additionalKeys")]
-    pub additional_keys: Option<HashMap<String, String>>,
+    pub(crate) additional_keys: Option<HashMap<String, String>>,
 }
 
 impl HealthResponse {

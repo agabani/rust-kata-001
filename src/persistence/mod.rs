@@ -6,18 +6,18 @@ use semver::Version;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
 
-pub struct Persistence<'a> {
+pub(crate) struct Persistence<'a> {
     relational_database: RelationalDatabase<'a>,
 }
 
 impl<'a> Persistence<'a> {
-    pub fn new(pool: &'a MySqlPool) -> Self {
+    pub(crate) fn new(pool: &'a MySqlPool) -> Self {
         Self {
             relational_database: RelationalDatabase::new(pool),
         }
     }
 
-    pub async fn get_one_batch(
+    pub(crate) async fn get_one_batch(
         &self,
         name_version: &[(String, Version)],
     ) -> Result<HashMap<(String, Version), Option<Crate>>, String> {
@@ -38,7 +38,7 @@ impl<'a> Persistence<'a> {
         Ok(results)
     }
 
-    pub async fn save_one(&self, c: &Crate) -> Result<(), String> {
+    pub(crate) async fn save_one(&self, c: &Crate) -> Result<(), String> {
         self.relational_database.save_one(c).await
     }
 

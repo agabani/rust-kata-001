@@ -1,4 +1,4 @@
-pub fn new() -> Result<reqwest::Client, String> {
+pub(crate) fn new() -> Result<reqwest::Client, String> {
     let fn_name = "new";
 
     let mut headers = reqwest::header::HeaderMap::new();

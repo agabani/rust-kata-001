@@ -5,19 +5,19 @@ use crate::domain::{Crate, CrateDependency};
 use semver::Version;
 use std::collections::HashMap;
 
-pub struct Api<'a> {
+pub(crate) struct Api<'a> {
     crates_io_client: CratesIoClient<'a>,
 }
 
 impl<'a> Api<'a> {
-    pub fn new(client: &'a reqwest::Client) -> Api<'a> {
+    pub(crate) fn new(client: &'a reqwest::Client) -> Api<'a> {
         Api {
             crates_io_client: CratesIoClient::new(client),
         }
     }
 
     /// Gets a crate.
-    pub async fn get_crate(&self, name: &str, version: &Version) -> Result<Crate, String> {
+    pub(crate) async fn get_crate(&self, name: &str, version: &Version) -> Result<Crate, String> {
         let fn_name = "get_crate";
 
         let dto = self

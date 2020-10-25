@@ -10,12 +10,12 @@ pub(crate) struct CrateDataDto {
     pub(crate) dependency_version: Option<String>,
 }
 
-pub struct RelationalDatabase<'a> {
+pub(crate) struct RelationalDatabase<'a> {
     pool: &'a MySqlPool,
 }
 
 impl<'a> RelationalDatabase<'a> {
-    pub fn new(pool: &'a MySqlPool) -> Self {
+    pub(crate) fn new(pool: &'a MySqlPool) -> Self {
         RelationalDatabase { pool }
     }
 
@@ -62,7 +62,7 @@ WHERE (c.name = ? AND c.version = ?)"
         Ok(crate_deps)
     }
 
-    pub async fn save_one(&self, c: &Crate) -> Result<(), String> {
+    pub(crate) async fn save_one(&self, c: &Crate) -> Result<(), String> {
         let fn_name = "save_one";
 
         log::info!("{}: crate={:?}", fn_name, c);

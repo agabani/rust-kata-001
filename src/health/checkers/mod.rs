@@ -7,6 +7,11 @@ use crate::health::HealthCheck;
 use crate::health::HealthStatus;
 use chrono::{SecondsFormat, Utc};
 
+pub(crate) use internet_http_connectivity::InternetHttpConnectivityHealthChecker;
+pub(crate) use internet_https_connectivity::InternetHttpsConnectivityHealthChecker;
+pub(crate) use mysql_connectivity::MySqlConnectivityHealthChecker;
+pub(crate) use uptime::UptimeHealthChecker;
+
 #[async_trait::async_trait]
 pub(crate) trait HealthCheckerAction {
     async fn check(&self) -> HealthCheck;

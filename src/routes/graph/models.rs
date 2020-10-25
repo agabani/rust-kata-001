@@ -2,32 +2,32 @@ use crate::domain::Crate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
-pub struct ErrorWebDto {
-    pub status_code: i32,
-    pub error_message: String,
+pub(crate) struct ErrorWebDto {
+    pub(crate) status_code: i32,
+    pub(crate) error_message: String,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CrateWebDto {
+pub(crate) struct CrateWebDto {
     name: String,
     version: String,
     dependency: Vec<CrateDependencyWebDto>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CrateDependencyWebDto {
+pub(crate) struct CrateDependencyWebDto {
     name: String,
     version: String,
 }
 
 #[derive(Deserialize)]
-pub struct ListQueryParams {
-    pub name: Option<String>,
-    pub version: Option<String>,
+pub(crate) struct ListQueryParams {
+    pub(crate) name: Option<String>,
+    pub(crate) version: Option<String>,
 }
 
 impl CrateWebDto {
-    pub fn transform(c: &Crate) -> Self {
+    pub(crate) fn transform(c: &Crate) -> Self {
         Self {
             name: c.name.clone(),
             version: c.version.to_string(),
