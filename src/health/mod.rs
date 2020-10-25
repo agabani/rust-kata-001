@@ -1,22 +1,18 @@
-mod common;
-mod database_health_checker;
-mod internet_http_health_checker;
-mod internet_https_health_checker;
+mod checkers;
 mod models;
-mod uptime_health_checker;
+
+use checkers::internet_http_connectivity::InternetHttpConnectivityHealthChecker;
+use checkers::internet_https_connectivity::InternetHttpsConnectivityHealthChecker;
+use checkers::mysql_connectivity::MySqlConnectivityHealthChecker;
+use checkers::uptime::UptimeHealthChecker;
+use checkers::HealthCheckerAction;
 
 pub(crate) use models::{Health, HealthCheck, HealthStatus};
 
-use common::HealthCheckerAction;
-use database_health_checker::DatabaseHealthChecker;
-use internet_http_health_checker::InternetHttpHealthChecker;
-use internet_https_health_checker::InternetHttpsHealthChecker;
-use uptime_health_checker::UptimeHealthChecker;
-
 pub(crate) struct HealthChecker<'a> {
-    database: DatabaseHealthChecker<'a>,
-    internet_http: InternetHttpHealthChecker<'a>,
-    internet_https: InternetHttpsHealthChecker<'a>,
+    internet_http_connectivity: InternetHttpConnectivityHealthChecker<'a>,
+    internet_https_connectivity: InternetHttpsConnectivityHealthChecker<'a>,
+    mysql_connectivity: MySqlConnectivityHealthChecker<'a>,
     uptime: UptimeHealthChecker,
 }
 
@@ -26,18 +22,22 @@ impl<'a> HealthChecker<'a> {
         http_client_pool: &'a reqwest::Client,
     ) -> Self {
         Self {
-            database: DatabaseHealthChecker::new(database_pool),
-            internet_http: InternetHttpHealthChecker::new(http_client_pool),
-            internet_https: InternetHttpsHealthChecker::new(http_client_pool),
+            internet_http_connectivity: InternetHttpConnectivityHealthChecker::new(
+                http_client_pool,
+            ),
+            internet_https_connectivity: InternetHttpsConnectivityHealthChecker::new(
+                http_client_pool,
+            ),
+            mysql_connectivity: MySqlConnectivityHealthChecker::new(database_pool),
             uptime: UptimeHealthChecker::new(),
         }
     }
 
     pub(crate) async fn check(&self) -> Health {
         let health_checks = futures::future::join_all(vec![
-            self.database.check(),
-            self.internet_http.check(),
-            self.internet_https.check(),
+            self.internet_http_connectivity.check(),
+            self.internet_https_connectivity.check(),
+            self.mysql_connectivity.check(),
             self.uptime.check(),
         ])
         .await;

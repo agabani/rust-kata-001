@@ -1,11 +1,17 @@
-use crate::health::{HealthCheck, HealthStatus};
+pub(crate) mod internet_http_connectivity;
+pub(crate) mod internet_https_connectivity;
+pub(crate) mod mysql_connectivity;
+pub(crate) mod uptime;
+
+use crate::health::HealthCheck;
+use crate::health::HealthStatus;
 
 #[async_trait::async_trait]
 pub(crate) trait HealthCheckerAction {
     async fn check(&self) -> HealthCheck;
 }
 
-pub(crate) fn map_database_status(
+fn map_database_status(
     result: &Result<sqlx::mysql::MySqlRow, sqlx::Error>,
 ) -> Option<HealthStatus> {
     match result {
@@ -14,9 +20,7 @@ pub(crate) fn map_database_status(
     }
 }
 
-pub(crate) fn map_internet_status(
-    result: &Result<reqwest::Response, reqwest::Error>,
-) -> Option<HealthStatus> {
+fn map_internet_status(result: &Result<reqwest::Response, reqwest::Error>) -> Option<HealthStatus> {
     match result {
         Ok(_) => Some(HealthStatus::Pass),
         Err(_) => Some(HealthStatus::Fail),

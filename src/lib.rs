@@ -4,9 +4,11 @@ mod graph;
 mod health;
 mod routes;
 
+use crate::factory::database_pool;
+use crate::factory::http_client_pool;
 use actix_web::{App, HttpServer};
+
 pub use config::Config;
-use factory::{database_pool, http_client_pool};
 
 pub async fn run(config: &Config) -> Result<(), String> {
     let fn_name = "run";

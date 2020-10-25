@@ -1,4 +1,6 @@
-use crate::health::{Health, HealthCheck, HealthStatus};
+use crate::health::Health;
+use crate::health::HealthCheck;
+use crate::health::HealthStatus;
 use serde::Serialize;
 use std::collections::HashMap;
 

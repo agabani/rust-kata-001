@@ -1,23 +1,24 @@
-use super::HealthCheck;
-use crate::health::common::{map_internet_status, HealthCheckerAction};
+use crate::health::checkers::map_internet_status;
+use crate::health::checkers::HealthCheckerAction;
+use crate::health::HealthCheck;
 
-pub(crate) struct InternetHttpHealthChecker<'a> {
+pub(crate) struct InternetHttpsConnectivityHealthChecker<'a> {
     pool: &'a reqwest::Client,
 }
 
-impl<'a> InternetHttpHealthChecker<'a> {
+impl<'a> InternetHttpsConnectivityHealthChecker<'a> {
     pub(crate) fn new(pool: &'a reqwest::Client) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl<'a> HealthCheckerAction for InternetHttpHealthChecker<'a> {
+impl<'a> HealthCheckerAction for InternetHttpsConnectivityHealthChecker<'a> {
     async fn check(&self) -> HealthCheck {
-        let response = self.pool.get("http://httpbin.org/anything").send().await;
+        let response = self.pool.get("https://httpbin.org/anything").send().await;
 
         HealthCheck {
-            component_name: "internet:http:connectivity".to_string(),
+            component_name: "internet:https:connectivity".to_string(),
             component_id: None,
             component_type: Some("system".to_owned()),
             observed_value: None,

@@ -1,7 +1,6 @@
-use crate::{
-    health::HealthChecker,
-    routes::health::models::{HealthResponse, HealthResponseStatus},
-};
+use crate::health::HealthChecker;
+use crate::routes::health::models::HealthResponse;
+use crate::routes::health::models::HealthResponseStatus;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::mysql;
 
