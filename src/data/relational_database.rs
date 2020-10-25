@@ -11,13 +11,13 @@ struct CrateDataDto {
     dependency_version: Option<String>,
 }
 
-pub struct Database<'a> {
+pub struct RelationalDatabase<'a> {
     pool: &'a MySqlPool,
 }
 
-impl<'a> Database<'a> {
+impl<'a> RelationalDatabase<'a> {
     pub fn new(pool: &'a MySqlPool) -> Self {
-        Database { pool }
+        RelationalDatabase { pool }
     }
 
     pub async fn get_one_batch(
@@ -252,7 +252,7 @@ mod tests {
             },
         ];
 
-        let mut actual = Database::transform_to_domain(&input);
+        let mut actual = RelationalDatabase::transform_to_domain(&input);
 
         actual.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
         for d in actual.iter_mut() {
@@ -267,7 +267,7 @@ mod tests {
     #[ignore]
     async fn integration_get_one_batch() -> Result<(), String> {
         let pool = database_pool::new("mysql://root:password@localhost:3306/rust-kata-001").await?;
-        let database = Database::new(&pool);
+        let database = RelationalDatabase::new(&pool);
 
         let crates = database
             .get_one_batch(&vec![
