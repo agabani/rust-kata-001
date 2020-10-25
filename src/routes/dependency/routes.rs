@@ -1,5 +1,5 @@
 use crate::data::Data;
-use crate::routes::graph::models;
+use crate::routes::dependency::models;
 use actix_web::{get, web, HttpResponse, Responder};
 use semver::Version;
 use sqlx::mysql;

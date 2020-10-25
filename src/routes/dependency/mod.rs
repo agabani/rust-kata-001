@@ -1,4 +1,4 @@
-use crate::routes::graph::routes::list;
+use crate::routes::dependency::routes::list;
 use actix_web::web::ServiceConfig;
 
 pub(crate) mod models;
