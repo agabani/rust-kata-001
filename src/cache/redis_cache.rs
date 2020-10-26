@@ -10,7 +10,7 @@ impl<'a> RedisCache<'a> {
         Self { redis_pool: pool }
     }
 
-    async fn get_string(&self, key: &str) -> Result<Option<String>, String> {
+    pub(crate) async fn get_string(&self, key: &str) -> Result<Option<String>, String> {
         let fn_name = "get_string";
 
         let mut connection = self.redis_pool.clone();
@@ -35,7 +35,7 @@ impl<'a> RedisCache<'a> {
         }
     }
 
-    async fn set_string(&self, key: &str, value: &str) -> Result<(), String> {
+    pub(crate) async fn set_string(&self, key: &str, value: &str) -> Result<(), String> {
         let fn_name = "set_string";
 
         let mut connection = self.redis_pool.clone();
