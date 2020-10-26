@@ -1,3 +1,5 @@
+use `rust-kata-001`;
+
 create table crate
 (
     id           int auto_increment

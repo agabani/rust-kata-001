@@ -1,0 +1,12 @@
+.git/
+.github/
+.idea/
+docs/
+sql/
+target/
+.dockerignore
+.gitattributes
+.gitignore
+docker-compose.yml
+Dockerfile
+README.md
