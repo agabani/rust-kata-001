@@ -1,4 +1,5 @@
 use crate::api::Api;
+use crate::cache::Cache;
 use crate::domain::Crate;
 use crate::persistence::Persistence;
 use semver::Version;
@@ -6,6 +7,7 @@ use std::collections::HashMap;
 
 pub(crate) struct Data<'a> {
     api: Api<'a>,
+    cache: Cache<'a>,
     persistence: Persistence<'a>,
 }
 
@@ -13,9 +15,11 @@ impl<'a> Data<'a> {
     pub(crate) fn new(
         database_pool: &'a sqlx::MySqlPool,
         http_client_pool: &'a reqwest::Client,
+        redis_pool: &'a redis::aio::MultiplexedConnection,
     ) -> Self {
         Self {
             api: Api::new(http_client_pool),
+            cache: Cache::new(redis_pool),
             persistence: Persistence::new(database_pool),
         }
     }
@@ -27,9 +31,13 @@ impl<'a> Data<'a> {
     ) -> Result<Vec<Crate>, String> {
         let fn_name = "get_dependency_graph";
 
+        if let Some(results) = self.cache.get_dependencies(&name, &version).await? {
+            return Ok(results);
+        }
+
         let mut hash: HashMap<(String, Version), Crate> = HashMap::new();
         let mut stack: Vec<(String, Version)> = Vec::new();
-        stack.push((name, version));
+        stack.push((name.to_owned(), version.to_owned()));
 
         while !&stack.is_empty() {
             let name_versions = stack
@@ -103,6 +111,10 @@ impl<'a> Data<'a> {
         let mut results = hash.into_iter().map(|(_, c)| c).collect::<Vec<_>>();
 
         results.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+
+        self.cache
+            .save_dependencies(&name, &version, &results)
+            .await?;
 
         Ok(results)
     }

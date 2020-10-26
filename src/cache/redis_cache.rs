@@ -1,19 +1,19 @@
 use redis::Value;
 use std::str::from_utf8;
 
-struct RedisCache<'a> {
-    pool: &'a redis::aio::MultiplexedConnection,
+pub(crate) struct RedisCache<'a> {
+    redis_pool: &'a redis::aio::MultiplexedConnection,
 }
 
 impl<'a> RedisCache<'a> {
-    fn new(pool: &'a redis::aio::MultiplexedConnection) -> Self {
-        Self { pool }
+    pub(crate) fn new(pool: &'a redis::aio::MultiplexedConnection) -> Self {
+        Self { redis_pool: pool }
     }
 
     async fn get_string(&self, key: &str) -> Result<Option<String>, String> {
         let fn_name = "get_string";
 
-        let mut connection = self.pool.clone();
+        let mut connection = self.redis_pool.clone();
 
         let value: Value = redis::cmd("GET")
             .arg(&[key])
@@ -38,7 +38,7 @@ impl<'a> RedisCache<'a> {
     async fn set_string(&self, key: &str, value: &str) -> Result<(), String> {
         let fn_name = "set_string";
 
-        let mut connection = self.pool.clone();
+        let mut connection = self.redis_pool.clone();
 
         let value: Value = redis::cmd("SET")
             .arg(&[key, value])

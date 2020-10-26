@@ -8,6 +8,7 @@ use sqlx::mysql;
 pub(crate) async fn list(
     database_pool: web::Data<mysql::MySqlPool>,
     http_client: web::Data<reqwest::Client>,
+    redis_pool: web::Data<redis::aio::MultiplexedConnection>,
     query_parameters: web::Query<models::ListQueryParams>,
 ) -> impl Responder {
     // request
@@ -40,9 +41,13 @@ pub(crate) async fn list(
     };
 
     // data
-    let result = Data::new(database_pool.get_ref(), http_client.get_ref())
-        .get_dependency_graph(name.to_owned(), version.to_owned())
-        .await;
+    let result = Data::new(
+        database_pool.get_ref(),
+        http_client.get_ref(),
+        redis_pool.get_ref(),
+    )
+    .get_dependency_graph(name.to_owned(), version.to_owned())
+    .await;
 
     // response
     match result {
