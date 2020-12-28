@@ -1,4 +1,4 @@
-FROM rust:1.47.0 as build
+FROM rust:1.48.0 as build
 # create empty project
 WORKDIR /usr/src
 RUN USER=root cargo new --bin app
@@ -14,6 +14,6 @@ COPY src/ src/
 # build release
 RUN cargo build --release
 
-FROM rust:alpine3.12
+FROM rust:1.48.0
 COPY --from=build /usr/src/app/target/release/rust-kata-001 .
 CMD ["./rust-kata-001"]
